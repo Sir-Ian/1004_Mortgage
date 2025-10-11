@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/schema/uad_1004_v1.json",
+  "title": "UAD 1004 Canonical Payload v1",
+  "type": "object",
+  "properties": {
+    "subject": {
+      "type": "object",
+      "properties": {
+        "address": {
+          "type": "object",
+          "properties": {
+            "street": { "type": "string" },
+            "city": { "type": "string" },
+            "state": { "type": "string", "pattern": "^[A-Z]{2}$" },
+            "zip": { "type": "string", "pattern": "^[0-9]{5}(-?[0-9]{4})?$" }
+          },
+          "additionalProperties": false
+        },
+        "county": { "type": "string" },
+        "parcel_number": { "type": "string" },
+        "pud_indicator": { "type": "boolean" },
+        "hoa_amount": { "type": "integer" },
+        "hoa_frequency": {
+          "type": "string",
+          "enum": ["PerMonth", "PerYear", "None"]
+        },
+        "tax_year": { "type": "string" },
+        "real_estate_taxes": { "type": "integer" }
+      },
+      "additionalProperties": false
+    },
+    "contract": {
+      "type": "object",
+      "properties": {
+        "assignment_type": {
+          "type": "string",
+          "enum": ["Purchase", "Refinance", "Other"]
+        },
+        "contract_price": { "type": "integer" },
+        "contract_date": {
+          "type": "string",
+          "pattern": "^(0[1-9]|1[0-2])/(0[1-9]|[12][0-9]|3[01])/[0-9]{4}$"
+        },
+        "seller_owner_public_record": {
+          "type": "string",
+          "enum": ["Yes", "No"]
+        },
+        "financial_assistance_flag": { "type": "boolean" },
+        "financial_assistance_amount": { "type": "integer" },
+        "offered_for_sale_flag": { "type": "boolean" },
+        "dom": { "type": "string" },
+        "offering_price": { "type": "integer" },
+        "offering_date": { "type": "string" },
+        "offering_data_source": { "type": "string" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "required": ["subject", "contract"],
+  "additionalProperties": false
+}

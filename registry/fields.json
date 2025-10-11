@@ -1,0 +1,24 @@
+{
+  "meta": { "form": "1004", "version": "v1" },
+  "fields": [
+    { "code": "subject.address.street", "uad": "Requirement" },
+    { "code": "subject.address.city",   "uad": "Requirement" },
+    { "code": "subject.address.state",  "uad": "Requirement" },
+    { "code": "subject.address.zip",    "uad": "Requirement" },
+    { "code": "subject.pud_indicator",  "uad": "Requirement" },
+    { "code": "subject.tax_year",       "uad": "Requirement" },
+    { "code": "subject.real_estate_taxes", "uad": "Requirement" },
+    { "code": "subject.hoa_amount",     "uad": "Instruction" },
+    { "code": "subject.hoa_frequency",  "uad": "Instruction" },
+    { "code": "contract.assignment_type", "uad": "Requirement" },
+    { "code": "contract.contract_price",  "uad": "Requirement",
+      "required_when": "contract.assignment_type == 'Purchase'" },
+    { "code": "contract.contract_date",   "uad": "Requirement",
+      "required_when": "contract.assignment_type == 'Purchase'" }
+  ],
+  "cross_rules": [
+    { "id":"X002", "desc":"PUD implies HOA freq known",
+      "expr":"subject.pud_indicator == true -> subject.hoa_frequency in ['PerMonth','PerYear']",
+      "severity":"warn" }
+  ]
+}
