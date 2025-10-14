@@ -14,6 +14,8 @@ Populate a `.env` file (or export variables) based on `.env.example`.
 | `AZURE_DOCINTEL_KEY` | API key for the Azure Document Intelligence resource. |
 | `AZURE_DOCINTEL_MODEL_ID` | Model ID to invoke (defaults to `prebuilt-mortgage.us.1004`). |
 | `AZURE_DOCINTEL_FILE` | Optional default path to the input PDF for the sample runner. |
+| `AZURE_DOCINTEL_FALLBACK_JSON` | Optional local JSON payload used when the Azure call fails (defaults to `samples/fallback_extract.json`). |
+| `AZURE_DOCINTEL_LOW_CONFIDENCE` | Optional float threshold (default `0.8`) for flagging low-confidence fields. |
 | `HOST` | FastAPI host binding (default `0.0.0.0`). |
 | `PORT` | FastAPI port (default `8000`). |
 
@@ -64,6 +66,105 @@ python samples/prebuilt_mortgage_1004.py --file path/to/form1004.pdf \
 The script accepts the same values via `AZURE_DOCINTEL_ENDPOINT`, `AZURE_DOCINTEL_KEY`,
 `AZURE_DOCINTEL_MODEL_ID`, and `AZURE_DOCINTEL_FILE` environment variables so you can
 store them in `.env` for local development.
+
+## Browser Demo
+
+Start the FastAPI service (`make run`) and open [http://localhost:8000/](http://localhost:8000/).
+The lightweight UI lets you upload a Form 1004 PDF, forwards it to Azure Document
+Intelligence, and displays:
+
+- Validation findings against the canonical schema and UAD rule registry.
+- Raw fields, types, confidence scores, and missing-field heuristics.
+- A banner when the local fallback payload is used because Azure is unavailable.
+
+You can pre-populate the demo with `samples/fallback_extract.json` to run without
+network connectivity or to simulate Azure outages.
+
+## Document Intelligence Field Inventory
+
+The Azure prebuilt `prebuilt-mortgage.us.1004` model surfaces the following fields.
+This list is generated from the SDK example in `samples/prebuilt_mortgage_1004.py`
+and drives the UI's raw field display so product teams can see exactly what the model
+returns during the proof of concept.
+
+```
+AppraisalEffectiveDate
+AppraisalType
+AppraisedMarketValue
+AppraisedValueOfSubjectProperty
+Appraiser
+AppraiserName
+AssessorParcelNumber
+AssignmentType
+BasementArea
+BasementFinish
+BorrowerName
+BuiltUpType
+CompanyAddress
+CompanyName
+ComparableSalePrice1
+ComparableSalePrice2
+ComparableSalePrice3
+ComparableSalesStatus
+Contract
+ContractDate
+ContractPrice
+DamageEvidenceType
+Deficiencies
+DesignStyle
+EffectiveAgeInYears
+EffectiveDate
+EmailAddress
+FemaMapDate
+FemaMapNumber
+FoundationType
+GrowthType
+HasDeficiencies
+HasMultiDwellingUnits
+HoaAmount
+HoaPaymentInterval
+Improvements
+IndicatedValue
+IndicatedValueByCostApproach
+IndicatedValueByIncomeApproach
+IndicatedValueBySalesComparisonApproach
+IsBuilderInControlOfHoa
+IsFemaSpecialFloodArea
+IsPropertySellerOwnerOfPublicRecord
+IsPud
+LegalDescription
+LenderOrClientAddress
+LenderOrClientName
+LocationType
+MarketingTimeTrend
+Neighborhood
+OccupantType
+PropertyAddress
+PropertyAppraisedAddress
+PropertyRightsAppraisedType
+PropertyValuesTrend
+PublicRecordOwner
+PudInfo
+RealEstateTaxes
+Reconciliation
+SalesComparisonApproach
+SignatureAndReportDate
+Site
+Status
+Subject
+SubjectPropertyStatus
+TaxYear
+TelephoneNumber
+Type
+UnitType
+UnitsType
+Utilities
+YearBuilt
+```
+
+Only a subset of these fields is required for the canonical payload described below.
+The `raw_fields` object returned by `/uad/validate` keeps the full set (value, confidence,
+and whether a fallback payload was used) so you can extend the schema as needed.
 
 ## Development
 

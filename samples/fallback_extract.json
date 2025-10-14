@@ -1,0 +1,88 @@
+{
+  "payload": {
+    "subject": {
+      "address": {
+        "street": "123 Demo Ave",
+        "city": "Seattle",
+        "state": "WA",
+        "zip": "98101"
+      },
+      "parcel_number": "123456789",
+      "pud_indicator": true,
+      "hoa_amount": 350,
+      "hoa_frequency": "PerMonth",
+      "tax_year": "2023",
+      "real_estate_taxes": 4200
+    },
+    "contract": {
+      "assignment_type": "Purchase",
+      "contract_price": 450000,
+      "contract_date": "03/15/2024",
+      "seller_owner_public_record": "Yes"
+    }
+  },
+  "raw_fields": {
+    "Subject.PropertyAddress": {
+      "type": "address",
+      "value": {
+        "street": "123 Demo Ave",
+        "city": "Seattle",
+        "state": "WA",
+        "zip": "98101"
+      },
+      "content": "123 Demo Ave Seattle WA 98101",
+      "confidence": 0.98,
+      "leaf": false
+    },
+    "Subject.PropertyAddress.street": {
+      "type": "string",
+      "value": "123 Demo Ave",
+      "content": "123 Demo Ave",
+      "confidence": 0.98,
+      "leaf": true
+    },
+    "Subject.PropertyAddress.city": {
+      "type": "string",
+      "value": "Seattle",
+      "content": "Seattle",
+      "confidence": 0.97,
+      "leaf": true
+    },
+    "Subject.PropertyAddress.state": {
+      "type": "string",
+      "value": "WA",
+      "content": "WA",
+      "confidence": 0.97,
+      "leaf": true
+    },
+    "Subject.PropertyAddress.zip": {
+      "type": "string",
+      "value": "98101",
+      "content": "98101",
+      "confidence": 0.97,
+      "leaf": true
+    },
+    "Subject.HoaPaymentInterval": {
+      "type": "selectionGroup",
+      "value": null,
+      "content": null,
+      "confidence": 0.4,
+      "leaf": true
+    },
+    "Appraiser.EmailAddress": {
+      "type": "string",
+      "value": null,
+      "content": null,
+      "confidence": 0.0,
+      "leaf": true
+    }
+  },
+  "missing_fields": [
+    "Appraiser.EmailAddress"
+  ],
+  "low_confidence_fields": [
+    "Subject.HoaPaymentInterval"
+  ],
+  "model_id": "fallback-mock",
+  "fallback_used": true
+}
