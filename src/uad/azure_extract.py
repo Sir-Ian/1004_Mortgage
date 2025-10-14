@@ -22,6 +22,7 @@ from azure.core.credentials import AzureKeyCredential
 logger = logging.getLogger(__name__)
 
 DEFAULT_FALLBACK = Path(__file__).resolve().parents[2] / "samples" / "fallback_extract.json"
+NONE_SELECTED_MESSAGE = "Azure Document Intelligence returned '(None Selected)' for this field."
 
 
 @dataclass
@@ -30,6 +31,7 @@ class ExtractionResult:
     raw_fields: dict[str, dict[str, Any]]
     missing_fields: list[str]
     low_confidence_fields: list[str]
+    business_flags: list[dict[str, Any]]
     model_id: str
     fallback_used: bool = False
 
@@ -59,7 +61,9 @@ def _fallback_path() -> Path | None:
 def _load_fallback(model_id: str | None = None) -> ExtractionResult:
     fallback = _fallback_path()
     if not fallback or not fallback.exists():
-        raise RuntimeError("Azure Document Intelligence call failed and no fallback payload is available.")
+        raise RuntimeError(
+            "Azure Document Intelligence call failed and no fallback payload is available."
+        )
     with fallback.open("r", encoding="utf-8") as handle:
         data = json.load(handle)
     payload = data.get("payload")
@@ -71,15 +75,21 @@ def _load_fallback(model_id: str | None = None) -> ExtractionResult:
     raw_fields = data.get("raw_fields", {})
     missing_fields = data.get("missing_fields", [])
     low_confidence_fields = data.get("low_confidence_fields", [])
-    resolved_model = data.get("model_id") or model_id or os.environ.get(
-        "AZURE_DOCINTEL_MODEL_ID", "prebuilt-mortgage.us.1004"
-    )
+    business_flags = data.get("business_flags", [])
+    fallback_model = data.get("model_id")
+    if isinstance(fallback_model, str) and fallback_model:
+        resolved_model = fallback_model
+    elif isinstance(model_id, str) and model_id:
+        resolved_model = model_id
+    else:
+        resolved_model = os.environ.get("AZURE_DOCINTEL_MODEL_ID", "prebuilt-mortgage.us.1004")
     fallback_used = bool(data.get("fallback_used", True))
     return ExtractionResult(
         payload=payload,
         raw_fields=raw_fields,
         missing_fields=missing_fields,
         low_confidence_fields=low_confidence_fields,
+        business_flags=business_flags,
         model_id=resolved_model,
         fallback_used=fallback_used,
     )
@@ -193,6 +203,27 @@ def _money_to_int(field: DocumentField | None) -> int | None:
         return int(digits) if digits else None
 
 
+def _phone_from_field(field: DocumentField | None) -> str | None:
+    if field is None:
+        return None
+    phone_number = getattr(field, "value_phone_number", None)
+    if phone_number is not None:
+        text = str(phone_number)
+    else:
+        content = _field_text(field)
+        if content is None:
+            return None
+        text = content
+    if not text:
+        return None
+    digits = "".join(ch for ch in str(text) if ch.isdigit())
+    if not digits:
+        return None
+    if len(digits) == 10:
+        return f"{digits[0:3]}-{digits[3:6]}-{digits[6:10]}"
+    return digits
+
+
 def _date_mmddyyyy(field: DocumentField | None) -> str | None:
     if field is None:
         return None
@@ -274,19 +305,22 @@ def _normalize_field_value(field: DocumentField | None) -> Any:
         }
     if field.value_address is not None:
         return _addr_split(field)
-    if field.value_selection_group:
-        return [str(option).strip() for option in field.value_selection_group if str(option).strip()]
+    selection_group = field.value_selection_group
+    if selection_group:
+        return [str(option).strip() for option in selection_group if str(option).strip()]
     if field.value_object:
         return {k: _normalize_field_value(v) for k, v in field.value_object.items()}
-    if field.value_list:
-        return [_normalize_field_value(v) for v in field.value_list]
+    value_list = getattr(field, "value_list", None)
+    if value_list:
+        return [_normalize_field_value(v) for v in value_list]
     if field.content:
         return field.content.strip() or None
     return None
 
 
 def _flatten_field(field: DocumentField, prefix: str) -> dict[str, dict[str, Any]]:
-    is_container = bool(field.value_object or field.value_list)
+    value_list = getattr(field, "value_list", None)
+    is_container = bool(field.value_object or value_list)
     info = {
         "type": getattr(field, "type", None),
         "value": _normalize_field_value(field),
@@ -298,8 +332,8 @@ def _flatten_field(field: DocumentField, prefix: str) -> dict[str, dict[str, Any
     if field.value_object:
         for key, child in field.value_object.items():
             flattened.update(_flatten_field(child, f"{prefix}.{key}"))
-    if field.value_list:
-        for idx, child in enumerate(field.value_list):
+    if value_list:
+        for idx, child in enumerate(value_list):
             flattened.update(_flatten_field(child, f"{prefix}[{idx}]"))
     return flattened
 
@@ -317,12 +351,44 @@ def _value_is_missing(value: Any) -> bool:
     if value is None:
         return True
     if isinstance(value, str):
-        return value.strip() == ""
-    if isinstance(value, (list, tuple, set)):
+        stripped = value.strip()
+        if not stripped:
+            return True
+        return stripped.lower() == "(none selected)"
+    if isinstance(value, list | tuple | set):
         return all(_value_is_missing(v) for v in value)
     if isinstance(value, dict):
         return all(_value_is_missing(v) for v in value.values())
     return False
+
+
+def _build_business_flags(raw_fields: dict[str, dict[str, Any]]) -> list[dict[str, Any]]:
+    flags: list[dict[str, Any]] = []
+    # Central place for underwriting/business heuristics that are more opinionated than
+    # simple missing/low-confidence detection.
+    for name, info in raw_fields.items():
+        if not info.get("leaf"):
+            continue
+        value = info.get("value")
+        content = info.get("content")
+        values_to_check: list[str] = []
+        if isinstance(value, str):
+            values_to_check.append(value)
+        elif isinstance(value, list | tuple | set):
+            values_to_check.extend(str(item) for item in value)
+        if isinstance(content, str):
+            values_to_check.append(content)
+        for candidate in values_to_check:
+            if candidate.strip().lower() == "(none selected)":
+                flags.append(
+                    {
+                        "field": name,
+                        "issue": "none_selected",
+                        "message": NONE_SELECTED_MESSAGE,
+                    }
+                )
+                break
+    return flags
 
 
 def extract_1004_fields(pdf_path: str, model_id: str | None = None) -> ExtractionResult:
@@ -341,10 +407,11 @@ def extract_1004_fields(pdf_path: str, model_id: str | None = None) -> Extractio
     doc: Any = documents[0] if documents else None
     if not doc:
         return ExtractionResult(
-            payload={"subject": {}, "contract": {}},
+            payload={"subject": {}, "contract": {}, "appraiser": {}},
             raw_fields={},
             missing_fields=[],
             low_confidence_fields=[],
+            business_flags=[],
             model_id=mid,
         )
 
@@ -390,17 +457,74 @@ def extract_1004_fields(pdf_path: str, model_id: str | None = None) -> Extractio
         "offering_data_source": None,
     }
 
-    def prune(obj: dict[str, Any]) -> dict[str, Any]:
-        return {k: v for k, v in obj.items() if v not in (None, "", [])}
+    appraiser_address = _addr_split(_field_by_path(doc, "Appraiser.CompanyAddress"))
+    appraiser_property_address = _addr_split(
+        _field_by_path(doc, "Appraiser.PropertyAppraisedAddress")
+    )
+    subject_status_field = _field_by_path(doc, "Appraiser.SubjectPropertyStatus")
+    comparable_status_field = _field_by_path(doc, "Appraiser.ComparableSalesStatus")
+    subject_status = None
+    if subject_status_field and subject_status_field.value_selection_group:
+        subject_status = [
+            str(option).strip()
+            for option in subject_status_field.value_selection_group
+            if str(option).strip()
+        ]
+    comparable_status = None
+    if comparable_status_field and comparable_status_field.value_selection_group:
+        comparable_status = [
+            str(option).strip()
+            for option in comparable_status_field.value_selection_group
+            if str(option).strip()
+        ]
+    appraiser = {
+        "name": _field_text(_field_by_path(doc, "Appraiser.AppraiserName")),
+        "company_name": _field_text(_field_by_path(doc, "Appraiser.CompanyName")),
+        "company_address": appraiser_address,
+        "email": _field_text(_field_by_path(doc, "Appraiser.EmailAddress")),
+        "phone": _phone_from_field(_field_by_path(doc, "Appraiser.TelephoneNumber")),
+        "appraised_value": _money_to_int(
+            _field_by_path(doc, "Appraiser.AppraisedValueOfSubjectProperty")
+        ),
+        "effective_date": _date_mmddyyyy(_field_by_path(doc, "Appraiser.EffectiveDate")),
+        "signature_date": _date_mmddyyyy(_field_by_path(doc, "Appraiser.SignatureAndReportDate")),
+        "subject_property_status": subject_status,
+        "comparable_sales_status": comparable_status,
+        "property_appraised_address": appraiser_property_address,
+    }
 
-    payload = {"subject": prune(subject), "contract": prune(contract)}
+    def prune(obj: dict[str, Any]) -> dict[str, Any]:
+        cleaned: dict[str, Any] = {}
+        for key, value in obj.items():
+            if isinstance(value, dict):
+                pruned = prune(value)
+                if pruned:
+                    cleaned[key] = pruned
+                continue
+            if isinstance(value, list):
+                pruned_list = [item for item in value if item not in (None, "", [])]
+                if pruned_list:
+                    cleaned[key] = pruned_list
+                continue
+            if value in (None, "", []):
+                continue
+            cleaned[key] = value
+        return cleaned
+
+    payload = {
+        "subject": prune(subject),
+        "contract": prune(contract),
+        "appraiser": prune(appraiser),
+    }
 
     raw_fields = _flatten_document_fields(doc)
     threshold = _low_conf_threshold()
     missing_fields = sorted(
         name
         for name, info in raw_fields.items()
-        if info.get("leaf") and _value_is_missing(info.get("value")) and _value_is_missing(info.get("content"))
+        if info.get("leaf")
+        and _value_is_missing(info.get("value"))
+        and _value_is_missing(info.get("content"))
     )
     low_confidence_fields = sorted(
         name
@@ -410,10 +534,13 @@ def extract_1004_fields(pdf_path: str, model_id: str | None = None) -> Extractio
         and info["confidence"] < threshold
     )
 
+    business_flags = _build_business_flags(raw_fields)
+
     return ExtractionResult(
         payload=payload,
         raw_fields=raw_fields,
         missing_fields=missing_fields,
         low_confidence_fields=low_confidence_fields,
+        business_flags=business_flags,
         model_id=mid,
     )

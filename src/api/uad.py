@@ -31,6 +31,7 @@ async def uad_validate(file: UploadFile = File(...)):  # noqa: B008
             "raw_fields": extraction.raw_fields,
             "missing_fields": extraction.missing_fields,
             "low_confidence_fields": extraction.low_confidence_fields,
+            "business_flags": extraction.business_flags,
             "model_id": extraction.model_id,
             "fallback_used": extraction.fallback_used,
             **validation,

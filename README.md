@@ -2,7 +2,9 @@
 
 This service extracts Uniform Residential Appraisal Report (URAR, Form 1004) data using
 Azure Document Intelligence and validates the payload against Uniform Appraisal Dataset
-(UAD) rules.
+(UAD) rules. The end goal is an end-to-end workflow where business users upload
+appraisal packages, Azure Document Intelligence performs OCR/extraction, and this
+service renders the structured results and compliance gaps in a shareable report.
 
 ## Configuration
 
@@ -74,7 +76,7 @@ The lightweight UI lets you upload a Form 1004 PDF, forwards it to Azure Documen
 Intelligence, and displays:
 
 - Validation findings against the canonical schema and UAD rule registry.
-- Raw fields, types, confidence scores, and missing-field heuristics.
+- Raw fields, types, confidence scores, missing-field heuristics, and business-rule flags.
 - A banner when the local fallback payload is used because Azure is unavailable.
 
 You can pre-populate the demo with `samples/fallback_extract.json` to run without
@@ -166,6 +168,25 @@ Only a subset of these fields is required for the canonical payload described be
 The `raw_fields` object returned by `/uad/validate` keeps the full set (value, confidence,
 and whether a fallback payload was used) so you can extend the schema as needed.
 
+## Canonical payload coverage
+
+`schema/uad_1004_v1.json` now includes three top-level sections:
+
+- **subject** – Address, parcel, tax, and HOA indicators for the property under review.
+- **contract** – Assignment type, pricing, and offer-level metadata.
+- **appraiser** – Name, firm, contact details, appraised value, effective/signature dates,
+  property-status selections, and the company/property addresses lifted directly from
+  the Azure raw fields.
+
+The `/uad/validate` response also returns:
+
+- `missing_fields` – Flattened paths whose extracted values are empty or marked as
+  `(None Selected)` by Azure.
+- `low_confidence_fields` – Leaf fields with confidence below the configurable threshold.
+- `business_flags` – A dedicated space for higher-level heuristics. Currently it records
+  `(None Selected)` findings and is ready for additional rules as underwriting logic
+  matures.
+
 ## Development
 
 ```bash
@@ -180,8 +201,21 @@ make test
 
 - `POST /uad/validate`: Accepts a PDF upload, extracts subject and contract data,
   validates against `schema/uad_1004_v1.json` and `registry/fields.json`, and returns
-  canonical data plus validation findings.
+  canonical data (subject, contract, appraiser), raw field snapshots, business flags,
+  and validation findings.
 - `GET /health`: Simple health probe.
 
 The validator enforces JSON Schema constraints, field-level requirements, and
 cross-field rules defined in `registry/fields.json`.
+
+## Recommendations
+
+To keep improving the demo toward production readiness:
+
+1. Replace the synthetic fallback payload with a sanitized capture from Azure once you
+   have customer-provided documents (and refresh it periodically).
+2. Add historical storage so multiple uploads can be compared over time and exported as
+   PDF/Excel reports for stakeholders.
+3. Introduce authentication and per-upload audit logs before exposing the tool broadly.
+4. Expand `business_flags` with portfolio-specific underwriting rules (e.g., HOA vs. PUD
+   consistency, FEMA flood-zone deltas, missing license data).

@@ -5,7 +5,7 @@ import json
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, cast
+from typing import Any, cast
 
 from jsonschema import Draft202012Validator
 
@@ -39,7 +39,7 @@ def _load_json(path: str | Path) -> dict[str, Any]:
         base_dir = Path(__file__).resolve().parents[2]
         data_path = base_dir / data_path
     with data_path.open("r", encoding="utf-8") as handle:
-        return cast(Dict[str, Any], json.load(handle))
+        return cast(dict[str, Any], json.load(handle))
 
 
 def _to_attr(value: Any) -> Any:
@@ -76,7 +76,7 @@ def _evaluate_node(node: ast.AST, context: dict[str, Any]) -> Any:
         return not bool(_evaluate_node(node.operand, context))
     if isinstance(node, ast.Compare):
         left = _evaluate_node(node.left, context)
-        for operator, comparator in zip(node.ops, node.comparators):
+        for operator, comparator in zip(node.ops, node.comparators, strict=False):
             right = _evaluate_node(comparator, context)
             if isinstance(operator, ast.Eq):
                 outcome = left == right
@@ -161,7 +161,7 @@ def _is_missing(value: Any) -> bool:
         return True
     if isinstance(value, str):
         return value.strip() == ""
-    if isinstance(value, (list, dict)):
+    if isinstance(value, list | dict):
         return len(value) == 0
     return False
 

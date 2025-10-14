@@ -19,6 +19,29 @@
       "contract_price": 450000,
       "contract_date": "03/15/2024",
       "seller_owner_public_record": "Yes"
+    },
+    "appraiser": {
+      "name": "Casey Appraiser",
+      "company_name": "Northwest Valuations",
+      "company_address": {
+        "street": "500 5th Ave",
+        "city": "Seattle",
+        "state": "WA",
+        "zip": "98104"
+      },
+      "email": null,
+      "phone": "206-555-0198",
+      "appraised_value": 455000,
+      "effective_date": "03/10/2024",
+      "signature_date": "03/12/2024",
+      "subject_property_status": ["Listed", "Pending"],
+      "comparable_sales_status": ["All settled"],
+      "property_appraised_address": {
+        "street": "123 Demo Ave",
+        "city": "Seattle",
+        "state": "WA",
+        "zip": "98101"
+      }
     }
   },
   "raw_fields": {
@@ -64,8 +87,8 @@
     },
     "Subject.HoaPaymentInterval": {
       "type": "selectionGroup",
-      "value": null,
-      "content": null,
+      "value": "(None Selected)",
+      "content": "(None Selected)",
       "confidence": 0.4,
       "leaf": true
     },
@@ -75,6 +98,13 @@
       "content": null,
       "confidence": 0.0,
       "leaf": true
+    },
+    "Appraiser.TelephoneNumber": {
+      "type": "phoneNumber",
+      "value": "206-555-0198",
+      "content": "(206) 555-0198",
+      "confidence": 0.92,
+      "leaf": true
     }
   },
   "missing_fields": [
@@ -82,6 +112,13 @@
   ],
   "low_confidence_fields": [
     "Subject.HoaPaymentInterval"
+  ],
+  "business_flags": [
+    {
+      "field": "Subject.HoaPaymentInterval",
+      "issue": "none_selected",
+      "message": "Azure Document Intelligence returned '(None Selected)' for this field."
+    }
   ],
   "model_id": "fallback-mock",
   "fallback_used": true

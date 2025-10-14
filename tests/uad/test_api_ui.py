@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
@@ -21,6 +20,11 @@ def _set_env(monkeypatch, tmp_path):
                 "address": {"street": "10 Demo St", "city": "Denver", "state": "CO", "zip": "80014"}
             },
             "contract": {"assignment_type": "Purchase"},
+            "appraiser": {
+                "name": "Jordan Appraiser",
+                "phone": "303-555-0102",
+                "subject_property_status": ["Active"],
+            },
         },
         "raw_fields": {
             "Subject.PropertyAddress.street": {
@@ -29,10 +33,24 @@ def _set_env(monkeypatch, tmp_path):
                 "content": "10 Demo St",
                 "confidence": 0.95,
                 "leaf": True,
-            }
+            },
+            "Subject.HoaPaymentInterval": {
+                "type": "selectionGroup",
+                "value": "(None Selected)",
+                "content": "(None Selected)",
+                "confidence": 0.5,
+                "leaf": True,
+            },
         },
         "missing_fields": [],
-        "low_confidence_fields": [],
+        "low_confidence_fields": ["Subject.HoaPaymentInterval"],
+        "business_flags": [
+            {
+                "field": "Subject.HoaPaymentInterval",
+                "issue": "none_selected",
+                "message": "Azure Document Intelligence returned '(None Selected)' for this field.",
+            }
+        ],
         "model_id": "fallback-ui-test",
         "fallback_used": True,
     }
@@ -66,3 +84,5 @@ def test_validate_endpoint_returns_fallback(tmp_path):
     assert payload["fallback_used"] is True
     assert payload["payload"]["contract"]["assignment_type"] == "Purchase"
     assert "Subject.PropertyAddress.street" in payload["raw_fields"]
+    assert payload["payload"]["appraiser"]["name"] == "Jordan Appraiser"
+    assert payload["business_flags"][0]["issue"] == "none_selected"

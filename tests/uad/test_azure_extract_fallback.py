@@ -12,10 +12,19 @@ def test_extract_uses_fallback_when_azure_fails(tmp_path, monkeypatch, fallback_
     payload = {
         "payload": {
             "subject": {
-                "address": {"street": "100 Test St", "city": "Austin", "state": "TX", "zip": "78701"},
+                "address": {
+                    "street": "100 Test St",
+                    "city": "Austin",
+                    "state": "TX",
+                    "zip": "78701",
+                },
                 "pud_indicator": False,
             },
             "contract": {"assignment_type": "Purchase"},
+            "appraiser": {
+                "name": "Taylor Appraiser",
+                "phone": "512-555-0184",
+            },
         },
         "raw_fields": {
             "Subject.PropertyAddress.street": {
@@ -24,10 +33,24 @@ def test_extract_uses_fallback_when_azure_fails(tmp_path, monkeypatch, fallback_
                 "content": "100 Test St",
                 "confidence": 0.93,
                 "leaf": True,
-            }
+            },
+            "Subject.HoaPaymentInterval": {
+                "type": "selectionGroup",
+                "value": "(None Selected)",
+                "content": "(None Selected)",
+                "confidence": 0.45,
+                "leaf": True,
+            },
         },
         "missing_fields": [],
-        "low_confidence_fields": [],
+        "low_confidence_fields": ["Subject.HoaPaymentInterval"],
+        "business_flags": [
+            {
+                "field": "Subject.HoaPaymentInterval",
+                "issue": "none_selected",
+                "message": "Azure Document Intelligence returned '(None Selected)' for this field.",
+            }
+        ],
         "model_id": "fallback-test",
         "fallback_used": True,
     }
@@ -58,3 +81,4 @@ def test_extract_uses_fallback_when_azure_fails(tmp_path, monkeypatch, fallback_
     assert result.fallback_used is True
     assert result.payload == payload["payload"]
     assert result.raw_fields["Subject.PropertyAddress.street"]["value"] == "100 Test St"
+    assert result.business_flags[0]["issue"] == "none_selected"

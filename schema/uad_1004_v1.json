@@ -55,6 +55,53 @@
         "offering_data_source": { "type": "string" }
       },
       "additionalProperties": false
+    },
+    "appraiser": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "company_name": { "type": "string" },
+        "company_address": {
+          "type": "object",
+          "properties": {
+            "street": { "type": "string" },
+            "city": { "type": "string" },
+            "state": { "type": "string", "pattern": "^[A-Z]{2}$" },
+            "zip": { "type": "string", "pattern": "^[0-9]{5}(-?[0-9]{4})?$" }
+          },
+          "additionalProperties": false
+        },
+        "property_appraised_address": {
+          "type": "object",
+          "properties": {
+            "street": { "type": "string" },
+            "city": { "type": "string" },
+            "state": { "type": "string", "pattern": "^[A-Z]{2}$" },
+            "zip": { "type": "string", "pattern": "^[0-9]{5}(-?[0-9]{4})?$" }
+          },
+          "additionalProperties": false
+        },
+        "email": { "type": "string", "format": "email" },
+        "phone": { "type": "string" },
+        "appraised_value": { "type": "integer" },
+        "effective_date": {
+          "type": "string",
+          "pattern": "^(0[1-9]|1[0-2])/(0[1-9]|[12][0-9]|3[01])/[0-9]{4}$"
+        },
+        "signature_date": {
+          "type": "string",
+          "pattern": "^(0[1-9]|1[0-2])/(0[1-9]|[12][0-9]|3[01])/[0-9]{4}$"
+        },
+        "subject_property_status": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "comparable_sales_status": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      },
+      "additionalProperties": false
     }
   },
   "required": ["subject", "contract"],
