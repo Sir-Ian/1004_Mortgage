@@ -2,9 +2,17 @@ from __future__ import annotations
 
 import os
 import re
+from collections.abc import Iterable
+from datetime import date
 from typing import Any
 
 from azure.ai.documentintelligence import DocumentIntelligenceClient
+from azure.ai.documentintelligence.models import (
+    AddressValue,
+    AnalyzedDocument,
+    CurrencyValue,
+    DocumentField,
+)
 from azure.core.credentials import AzureKeyCredential
 
 
@@ -14,69 +22,124 @@ def _client() -> DocumentIntelligenceClient:
     return DocumentIntelligenceClient(endpoint=endpoint, credential=AzureKeyCredential(key))
 
 
-def _addr_split(addr: dict) -> dict[str, Any]:
-    # Azure returns an address object; normalize into parts we expect.
-    # Fields may be None; guard and trim.
-    def s(v):
-        return None if v is None else str(v).strip()
+def _field_by_path(doc: AnalyzedDocument, path: str) -> DocumentField | None:
+    current: DocumentField | None
+    parts = path.split(".")
+    fields = getattr(doc, "fields", None) or {}
+    if not fields:
+        return None
+    current = fields.get(parts[0])
+    for part in parts[1:]:
+        if current is None:
+            return None
+        obj = current.value_object
+        if not obj:
+            return None
+        current = obj.get(part)
+    return current
+
+
+def _field_text(field: DocumentField | None) -> str | None:
+    if field is None:
+        return None
+    value = field.value_string
+    if value is not None:
+        stripped = value.strip()
+        return stripped or None
+    if field.content:
+        stripped = field.content.strip()
+        return stripped or None
+    return None
+
+
+def _addr_split(field: DocumentField | None) -> dict[str, Any]:
+    addr: AddressValue | None = None
+    if field is None:
+        return {}
+    if field.value_address:
+        addr = field.value_address
+    elif field.value_object:
+        obj = field.value_object
+        street_field = obj.get("streetAddress") or obj.get("street")
+        city_field = obj.get("city")
+        state_field = obj.get("state")
+        zip_field = obj.get("postalCode")
+        parts = {
+            "street": _field_text(street_field),
+            "city": _field_text(city_field),
+            "state": _field_text(state_field),
+            "zip": _field_text(zip_field),
+        }
+        return {k: v for k, v in parts.items() if v not in (None, "")}
+    if not addr:
+        return {}
+
+    def s(v: str | None) -> str | None:
+        return None if v is None else v.strip() or None
 
     parts = {
-        "street": s(addr.get("streetAddress") or addr.get("street")),
-        "city": s(addr.get("city")),
-        "state": s(addr.get("state")),
-        "zip": s(addr.get("postalCode")),
+        "street": s(addr.street_address or addr.house or addr.road),
+        "city": s(addr.city),
+        "state": s(addr.state),
+        "zip": s(addr.postal_code),
     }
     return {k: v for k, v in parts.items() if v not in (None, "")}
 
 
-def _yesno_from_selection(sel: dict | None) -> str | None:
-    # selectionGroup rendered as ':selected:' labels; DI SDK yields structured values.
-    if not sel:
+def _pick_selected_label(
+    field: DocumentField | None, aliases: dict[str, str] | None = None
+) -> str | None:
+    if field is None:
         return None
-    # Prefer normalized text if present
-    v = sel.get("value") or sel.get("content") or ""
-    t = str(v).strip().lower()
-    if t in ("yes", "y"):
-        return "Yes"
-    if t in ("no", "n"):
-        return "No"
-    return None
-
-
-def _pick_selected_label(group: dict | None, aliases: dict[str, str] | None = None) -> str | None:
-    if not group:
+    options: Iterable[str] = field.value_selection_group or []
+    for option in options:
+        label = str(option).strip()
+        if not label:
+            continue
+        if aliases and label in aliases:
+            return aliases[label]
+        return label
+    content = _field_text(field)
+    if content is None:
         return None
-    # Expect one selected option; value/label can vary by SDK version
-    chosen = group.get("selectedOption") or group.get("value") or group.get("content")
-    if not chosen:
+    label = content.strip()
+    if not label:
         return None
-    label = str(chosen).strip()
     if aliases and label in aliases:
         return aliases[label]
     return label
 
 
-def _int(v) -> int | None:
-    if v is None:
+def _money_to_int(field: DocumentField | None) -> int | None:
+    if field is None:
         return None
-    s = "".join(ch for ch in str(v) if ch.isdigit())
-    return int(s) if s else None
-
-
-def _money_to_int(v) -> int | None:
-    # UAD wants whole dollars; coerce numeric/decimal to int
-    if v is None:
+    currency: CurrencyValue | None = field.value_currency
+    if currency and currency.amount is not None:
+        return int(round(float(currency.amount)))
+    if field.value_number is not None:
+        return int(round(field.value_number))
+    if field.value_integer is not None:
+        return int(field.value_integer)
+    text = _field_text(field)
+    if text is None:
         return None
     try:
-        return int(round(float(str(v).replace(",", "").replace("$", ""))))
+        return int(round(float(text.replace(",", "").replace("$", ""))))
     except Exception:
-        return _int(v)
+        digits = "".join(ch for ch in text if ch.isdigit())
+        return int(digits) if digits else None
 
 
-def _date_mmddyyyy(v) -> str | None:
-    if not v:
+def _date_mmddyyyy(field: DocumentField | None) -> str | None:
+    if field is None:
         return None
-    s = str(v).strip().replace("-", "/").replace(".", "/")
+    value: date | None = field.value_date
+    if value is not None:
+        return value.strftime("%m/%d/%Y")
+    text = _field_text(field)
+    if not text:
+        return None
+    s = text.strip().replace("-", "/").replace(".", "/")
     m = re.match(r"^(\d{1,2})/(\d{1,2})/(\d{2,4})$", s)
     if not m:
         return None
@@ -84,6 +147,24 @@ def _date_mmddyyyy(v) -> str | None:
     if len(yy) == 2:
         yy = "20" + yy
     return f"{int(mm):02d}/{int(dd):02d}/{int(yy):04d}"
+
+
+def _bool_from_field(field: DocumentField | None) -> bool | None:
+    if field is None:
+        return None
+    if field.value_boolean is not None:
+        return bool(field.value_boolean)
+    label = _pick_selected_label(field)
+    if label is None:
+        label = _field_text(field)
+    if label is None:
+        return None
+    lowered = label.strip().lower()
+    if lowered in {"yes", "y", "true"}:
+        return True
+    if lowered in {"no", "n", "false"}:
+        return False
+    return None
 
 
 def _hoa_freq(label: str | None) -> str:
@@ -118,24 +199,9 @@ def extract_1004_fields(pdf_path: str, model_id: str | None = None) -> dict[str,
     if not doc:
         return {"subject": {}, "contract": {}}
 
-    # Helper to read a field by dotted path in Azure model:
-    def get(path: str):
-        if doc is None:
-            return None
-        cur: Any = getattr(doc, "fields", {}) or {}
-        for part in path.split("."):
-            if isinstance(cur, dict):
-                field = cur.get(part)
-                cur = field.get("value") if isinstance(field, dict) else None
-            else:
-                cur = None
-            if cur is None:
-                break
-        return cur
-
     # Subject.PropertyAddress is an address object
-    subj_addr = get("Subject.PropertyAddress") or {}
-    addr = _addr_split(subj_addr if isinstance(subj_addr, dict) else {})
+    subj_addr_field = _field_by_path(doc, "Subject.PropertyAddress")
+    addr = _addr_split(subj_addr_field)
 
     # Selection aliases for enums we normalize
     assign_alias = {
@@ -148,20 +214,25 @@ def extract_1004_fields(pdf_path: str, model_id: str | None = None) -> dict[str,
     subject = {
         "address": addr,
         "county": None,  # not in the prebuilt list; may derive later
-        "parcel_number": get("Subject.AssessorParcelNumber"),
-        "pud_indicator": bool(get("Subject.IsPud")) if get("Subject.IsPud") is not None else None,
-        "hoa_amount": _money_to_int(get("Subject.HoaAmount")),
-        "hoa_frequency": _hoa_freq(_pick_selected_label(get("Subject.HoaPaymentInterval"))),
-        "tax_year": str(get("Subject.TaxYear")) if get("Subject.TaxYear") is not None else None,
-        "real_estate_taxes": _money_to_int(get("Subject.RealEstateTaxes")),
+        "parcel_number": _field_text(_field_by_path(doc, "Subject.AssessorParcelNumber")),
+        "pud_indicator": _bool_from_field(_field_by_path(doc, "Subject.IsPud")),
+        "hoa_amount": _money_to_int(_field_by_path(doc, "Subject.HoaAmount")),
+        "hoa_frequency": _hoa_freq(
+            _pick_selected_label(_field_by_path(doc, "Subject.HoaPaymentInterval"))
+        ),
+        "tax_year": _field_text(_field_by_path(doc, "Subject.TaxYear")),
+        "real_estate_taxes": _money_to_int(_field_by_path(doc, "Subject.RealEstateTaxes")),
     }
 
     contract = {
-        "assignment_type": _pick_selected_label(get("Subject.AssignmentType"), assign_alias),
-        "contract_price": _money_to_int(get("Contract.ContractPrice")),
-        "contract_date": _date_mmddyyyy(get("Contract.ContractDate")),
+        "assignment_type": _pick_selected_label(
+            _field_by_path(doc, "Subject.AssignmentType"), assign_alias
+        ),
+        "contract_price": _money_to_int(_field_by_path(doc, "Contract.ContractPrice")),
+        "contract_date": _date_mmddyyyy(_field_by_path(doc, "Contract.ContractDate")),
         "seller_owner_public_record": _pick_selected_label(
-            get("Contract.IsPropertySellerOwnerOfPublicRecord"), {"Yes": "Yes", "No": "No"}
+            _field_by_path(doc, "Contract.IsPropertySellerOwnerOfPublicRecord"),
+            {"Yes": "Yes", "No": "No"},
         ),
         # Financial assistance fields not in prebuilt list; leave None for now
         "financial_assistance_flag": None,
