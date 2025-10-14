@@ -13,6 +13,7 @@ Populate a `.env` file (or export variables) based on `.env.example`.
 | `AZURE_DOCINTEL_ENDPOINT` | Azure Document Intelligence endpoint URL. |
 | `AZURE_DOCINTEL_KEY` | API key for the Azure Document Intelligence resource. |
 | `AZURE_DOCINTEL_MODEL_ID` | Model ID to invoke (defaults to `prebuilt-mortgage.us.1004`). |
+| `AZURE_DOCINTEL_FILE` | Optional default path to the input PDF for the sample runner. |
 | `HOST` | FastAPI host binding (default `0.0.0.0`). |
 | `PORT` | FastAPI port (default `8000`). |
 
@@ -49,6 +50,20 @@ The response includes the canonical payload plus UAD findings:
 
 > **Note:** The extractor relies on the Azure prebuilt `prebuilt-mortgage.us.1004` model. No
 > document contents or secrets are logged.
+
+### Running the Azure sample script
+
+If you want to replicate the Azure quickstart output verbatim, run the helper script that
+mirrors the documentation example:
+
+```bash
+python samples/prebuilt_mortgage_1004.py --file path/to/form1004.pdf \
+  --endpoint "$AZURE_DOCINTEL_ENDPOINT" --key "$AZURE_DOCINTEL_KEY"
+```
+
+The script accepts the same values via `AZURE_DOCINTEL_ENDPOINT`, `AZURE_DOCINTEL_KEY`,
+`AZURE_DOCINTEL_MODEL_ID`, and `AZURE_DOCINTEL_FILE` environment variables so you can
+store them in `.env` for local development.
 
 ## Development
 
