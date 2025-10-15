@@ -5,9 +5,12 @@ from pathlib import Path
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse
 
+from src.env_loader import load_env_file
 from src.api.uad import router as uad_router
 
 FRONTEND_PATH = Path(__file__).resolve().parents[1] / "form-1004-analysis-liquidglass.html"
+
+load_env_file()
 
 app = FastAPI(title="1004 Mortgage UAD Service")
 app.include_router(uad_router)

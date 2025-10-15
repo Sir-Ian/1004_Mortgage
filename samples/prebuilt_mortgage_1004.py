@@ -11,8 +11,17 @@ import argparse
 import os
 from pathlib import Path
 
-from azure.core.credentials import AzureKeyCredential
 from azure.ai.documentintelligence import DocumentIntelligenceClient
+from azure.core.credentials import AzureKeyCredential
+
+try:
+    # Allow running the script without manually exporting environment variables.
+    from src.env_loader import load_env_file  # type: ignore
+except ImportError:  # pragma: no cover - samples can run outside the package context
+    load_env_file = None  # type: ignore
+
+if load_env_file is not None:
+    load_env_file()
 
 
 def parse_args() -> argparse.Namespace:
