@@ -69,7 +69,7 @@ def test_index_route_serves_html():
     client = TestClient(app)
     response = client.get("/")
     assert response.status_code == 200
-    assert "Mortgage 1004 Document Intelligence" in response.text
+    assert "Form 1004 Analysis Suite" in response.text
 
 
 def test_validate_endpoint_returns_fallback(tmp_path):

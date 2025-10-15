@@ -141,6 +141,32 @@
             margin-top: 30px;
         }
 
+        .status-message {
+            margin-top: 20px;
+            text-align: center;
+            font-size: 15px;
+            font-weight: 500;
+            color: rgba(255, 255, 255, 0.9);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .status-message.show {
+            opacity: 1;
+        }
+
+        .status-message.info {
+            color: #bfdbfe;
+        }
+
+        .status-message.success {
+            color: #4ade80;
+        }
+
+        .status-message.error {
+            color: #f87171;
+        }
+
         .analyze-btn, .demo-btn {
             display: none;
             padding: 16px 48px;
@@ -461,6 +487,7 @@
                     🎯 View Demo Results
                 </button>
             </div>
+            <div class="status-message" id="statusMessage"></div>
         </div>
 
         <!-- Results Section -->
@@ -587,217 +614,345 @@
     </div>
 
     <script>
-        // Mock data for demonstration
-        const mockAnalysisResult = {
-            missingFields: [
-                'Property Address Line 2',
-                'Legal Description',
-                'HOA Dues',
-                'Comparable Sale 3 Address',
-                'Flood Zone'
-            ],
-            lowConfidence: [
-                { field: 'Sale Price', confidence: 0.72 },
-                { field: 'Loan Amount', confidence: 0.68 },
-                { field: 'Appraised Value', confidence: 0.75 },
-                { field: 'Square Footage', confidence: 0.65 }
-            ],
-            businessFlags: [
-                { flag: 'Sale price significantly below appraised value (15% difference)', severity: 'high' },
-                { flag: 'Property age exceeds 50 years (built in 1968)', severity: 'medium' },
-                { flag: 'Missing comparable sales data - only 2 of 3 provided', severity: 'low' }
-            ],
-            validationSummary: {
-                documentType: 'URAR Form 1004',
-                confidence: 0.94,
-                pageCount: 6,
-                processingTime: '1.8s',
-                extractedFields: 78,
-                warnings: 3,
-                timestamp: new Date().toISOString()
-            },
-            rawFields: {
-                borrowerName: 'John Smith',
-                propertyAddress: '123 Main Street',
-                city: 'Springfield',
-                state: 'IL',
-                zipCode: '62701',
-                salePrice: '$350,000',
-                loanAmount: '$280,000',
-                appraisedValue: '$410,000',
-                appraisalDate: '2024-10-01',
-                propertyType: 'Single Family',
-                yearBuilt: '1968',
-                squareFootage: '2,450 sq ft',
-                bedrooms: '4',
-                bathrooms: '2.5',
-                lotSize: '0.25 acres'
-            },
-            stats: {
-                totalFields: 95,
-                completedFields: 78,
-                missingFields: 17,
-                lowConfidenceCount: 4,
-                flagsCount: 3
-            }
+        const fileInput = document.getElementById("fileInput");
+        const uploadArea = document.getElementById("uploadArea");
+        const selectedFile = document.getElementById("selectedFile");
+        const analyzeBtn = document.getElementById("analyzeBtn");
+        const demoBtn = document.getElementById("demoBtn");
+        const resultsSection = document.getElementById("resultsSection");
+        const statusMessage = document.getElementById("statusMessage");
+
+        const ICONS = {
+            analyze: String.fromCodePoint(0x1F4CA),
+            demo: String.fromCodePoint(0x1F3AF),
+            file: String.fromCodePoint(0x1F4C4),
         };
 
-        // File upload handling
-        const fileInput = document.getElementById('fileInput');
-        const uploadArea = document.getElementById('uploadArea');
-        const selectedFile = document.getElementById('selectedFile');
-        const analyzeBtn = document.getElementById('analyzeBtn');
-        const demoBtn = document.getElementById('demoBtn');
-        const resultsSection = document.getElementById('resultsSection');
+        const DEFAULT_ANALYZE_LABEL = `${ICONS.analyze} Analyze Document`;
+        const DEFAULT_DEMO_LABEL = `${ICONS.demo} View Demo Results`;
 
-        uploadArea.addEventListener('click', () => {
-            fileInput.click();
-        });
+        if (analyzeBtn) {
+            analyzeBtn.innerHTML = DEFAULT_ANALYZE_LABEL;
+        }
+        if (demoBtn) {
+            demoBtn.innerHTML = DEFAULT_DEMO_LABEL;
+        }
 
-        fileInput.addEventListener('change', (e) => {
-            const file = e.target.files[0];
-            if (file) {
-                selectedFile.textContent = `📄 ${file.name}`;
-                selectedFile.classList.add('show');
-                analyzeBtn.classList.add('show');
+        function setStatus(message, type = "info") {
+            if (!statusMessage) {
+                return;
             }
-        });
+            statusMessage.classList.remove("info", "success", "error", "show");
+            if (!message) {
+                statusMessage.textContent = "";
+                return;
+            }
+            const normalized = ["info", "success", "error"].includes(type) ? type : "info";
+            statusMessage.textContent = message;
+            statusMessage.classList.add(normalized, "show");
+        }
 
-        // Analyze button handling
-        analyzeBtn.addEventListener('click', async () => {
-            analyzeBtn.disabled = true;
-            analyzeBtn.innerHTML = '<span class="spinner"></span> Analyzing Document...';
+        function coerceConfidence(value) {
+            if (typeof value !== "number" || !Number.isFinite(value)) {
+                return null;
+            }
+            return Math.max(0, Math.min(1, value));
+        }
 
-            // Simulate API call
-            await new Promise(resolve => setTimeout(resolve, 2000));
+        function valueIsPresent(value) {
+            if (value === null || value === undefined) {
+                return false;
+            }
+            if (typeof value === "string") {
+                return value.trim().length > 0;
+            }
+            if (Array.isArray(value)) {
+                return value.some((item) => valueIsPresent(item));
+            }
+            if (typeof value === "object") {
+                return Object.values(value).some((item) => valueIsPresent(item));
+            }
+            return true;
+        }
 
-            // Display results
-            displayResults(mockAnalysisResult);
-            
-            analyzeBtn.disabled = false;
-            analyzeBtn.innerHTML = '📊 Analyze Document';
-            resultsSection.classList.add('show');
-            resultsSection.scrollIntoView({ behavior: 'smooth' });
-        });
+        function severityFromFinding(severity) {
+            if (typeof severity !== "string") {
+                return "low";
+            }
+            const normalized = severity.trim().toLowerCase();
+            if (normalized === "error") {
+                return "high";
+            }
+            if (normalized === "warn" || normalized === "warning") {
+                return "medium";
+            }
+            return "low";
+        }
 
-        // Demo button handling
-        demoBtn.addEventListener('click', async () => {
-            demoBtn.disabled = true;
-            demoBtn.innerHTML = '<span class="spinner"></span> Loading Demo...';
+        function transformApiResponse(data) {
+            const rawFields = data?.raw_fields ?? {};
+            const missingFields = Array.isArray(data?.missing_fields) ? data.missing_fields : [];
+            const lowConfidenceFields = Array.isArray(data?.low_confidence_fields)
+                ? data.low_confidence_fields
+                : [];
+            const businessFlags = Array.isArray(data?.business_flags) ? data.business_flags : [];
+            const findings = Array.isArray(data?.findings) ? data.findings : [];
 
-            // Simulate API call
-            await new Promise(resolve => setTimeout(resolve, 1500));
+            const leafEntries = Object.entries(rawFields).filter(
+                ([, details]) => details && details.leaf !== false
+            );
+            const totalLeafFields = leafEntries.length;
+            const completedLeafFields = leafEntries.filter(([, details]) => {
+                return valueIsPresent(details?.value) || valueIsPresent(details?.content);
+            }).length;
 
-            // Display results
-            displayResults(mockAnalysisResult);
-            
-            demoBtn.disabled = false;
-            demoBtn.innerHTML = '🎯 View Demo Results';
-            resultsSection.classList.add('show');
-            resultsSection.scrollIntoView({ behavior: 'smooth' });
-        });
+            const lowConfidence = lowConfidenceFields.map((field) => {
+                const info = rawFields[field] ?? {};
+                return {
+                    field,
+                    confidence: coerceConfidence(info.confidence ?? null),
+                };
+            });
 
-        // Display results function
+            const findingFlags = findings.map((finding) => ({
+                flag: finding.message ? `${finding.field}: ${finding.message}` : finding.field,
+                severity: severityFromFinding(finding.severity),
+            }));
+
+            const heuristicFlags = businessFlags.map((flag) => ({
+                flag: flag.message ? `${flag.field}: ${flag.message}` : flag.field,
+                severity: "medium",
+            }));
+
+            const combinedFlags = [...findingFlags, ...heuristicFlags];
+            const statsTotal = totalLeafFields || completedLeafFields + missingFields.length || 1;
+
+            return {
+                stats: {
+                    totalFields: statsTotal,
+                    completedFields: completedLeafFields,
+                    missingFields: missingFields.length,
+                    lowConfidenceCount: lowConfidence.length,
+                    flagsCount: combinedFlags.length,
+                },
+                missingFields,
+                lowConfidence,
+                businessFlags: combinedFlags,
+                validationSummary: {
+                    status: data?.status ?? "unknown",
+                    modelId: data?.model_id ?? "unknown",
+                    fallbackUsed: Boolean(data?.fallback_used),
+                    missingFields,
+                    lowConfidenceFields,
+                    businessFlags,
+                    findings,
+                    processedAt: new Date().toISOString(),
+                },
+                rawFields,
+            };
+        }
+
         function displayResults(result) {
-            // Update stats
-            const completionPercentage = Math.round((result.stats.completedFields / result.stats.totalFields) * 100);
-            document.getElementById('completionRate').textContent = `${completionPercentage}%`;
-            document.getElementById('missingCount').textContent = result.stats.missingFields;
-            document.getElementById('lowConfidenceCount').textContent = result.stats.lowConfidenceCount;
-            document.getElementById('flagsCount').textContent = result.stats.flagsCount;
+            const safeTotal = result.stats.totalFields || 1;
+            const completionPercentage = Math.round((result.stats.completedFields / safeTotal) * 100);
+            document.getElementById("completionRate").textContent = `${completionPercentage}%`;
+            document.getElementById("missingCount").textContent = result.stats.missingFields;
+            document.getElementById("lowConfidenceCount").textContent = result.stats.lowConfidenceCount;
+            document.getElementById("flagsCount").textContent = result.stats.flagsCount;
 
-            // Missing fields
-            const missingFieldsList = document.getElementById('missingFieldsList');
-            missingFieldsList.innerHTML = result.missingFields.map(field => 
-                `<div class="missing-field-item">• ${field}</div>`
-            ).join('');
+            const missingFieldsList = document.getElementById("missingFieldsList");
+            if (!result.missingFields.length) {
+                missingFieldsList.innerHTML =
+                    `<div class="missing-field-item">No missing fields detected.</div>`;
+            } else {
+                missingFieldsList.innerHTML = result.missingFields
+                    .map((field) => `<div class="missing-field-item">${field}</div>`)
+                    .join("");
+            }
 
-            // Low confidence fields
-            const confidenceList = document.getElementById('confidenceList');
-            confidenceList.innerHTML = result.lowConfidence.map(item => `
+            const confidenceList = document.getElementById("confidenceList");
+            if (!result.lowConfidence.length) {
+                confidenceList.innerHTML =
+                    `<div class="confidence-item"><div class="confidence-field"><span>All fields meet the confidence threshold.</span><span class="confidence-value">N/A</span></div><div class="confidence-bar"><div class="confidence-fill" style="width: 0%"></div></div></div>`;
+            } else {
+                confidenceList.innerHTML = result.lowConfidence
+                    .map((item) => {
+                        const percentage =
+                            item.confidence === null ? "N/A" : `${Math.round(item.confidence * 100)}%`;
+                        const width = item.confidence === null ? "0%" : `${item.confidence * 100}%`;
+                        return `
                 <div class="confidence-item">
                     <div class="confidence-field">
                         <span>${item.field}</span>
-                        <span class="confidence-value">${Math.round(item.confidence * 100)}%</span>
+                        <span class="confidence-value">${percentage}</span>
                     </div>
                     <div class="confidence-bar">
-                        <div class="confidence-fill" style="width: ${item.confidence * 100}%"></div>
+                        <div class="confidence-fill" style="width: ${width}"></div>
                     </div>
                 </div>
-            `).join('');
+            `;
+                    })
+                    .join("");
+            }
 
-            // Business flags
-            const flagsList = document.getElementById('flagsList');
-            flagsList.innerHTML = result.businessFlags.map(item => {
+            const flagsList = document.getElementById("flagsList");
+            if (!result.businessFlags.length) {
+                flagsList.innerHTML =
+                    `<div class="flag-item"><div class="flag-indicator" style="background: rgb(34, 197, 94)"></div><div><div>No business flags raised.</div><div class="flag-severity">OK</div></div></div>`;
+            } else {
                 const colors = {
-                    high: 'rgb(239, 68, 68)',
-                    medium: 'rgb(251, 146, 60)',
-                    low: 'rgb(234, 179, 8)'
+                    high: "rgb(239, 68, 68)",
+                    medium: "rgb(251, 146, 60)",
+                    low: "rgb(234, 179, 8)",
                 };
-                return `
+                flagsList.innerHTML = result.businessFlags
+                    .map((item) => {
+                        const color = colors[item.severity] ?? colors.medium;
+                        const label = (item.severity ?? "medium").toUpperCase();
+                        return `
                     <div class="flag-item">
-                        <div class="flag-indicator" style="background: ${colors[item.severity]}"></div>
+                        <div class="flag-indicator" style="background: ${color}"></div>
                         <div>
                             <div>${item.flag}</div>
-                            <div class="flag-severity">${item.severity.toUpperCase()}</div>
+                            <div class="flag-severity">${label}</div>
                         </div>
                     </div>
                 `;
-            }).join('');
+                    })
+                    .join("");
+            }
 
-            // JSON viewers
-            document.getElementById('validationJson').textContent = JSON.stringify(result.validationSummary, null, 2);
-            document.getElementById('rawJson').textContent = JSON.stringify(result.rawFields, null, 2);
+            document.getElementById("validationJson").textContent = JSON.stringify(
+                result.validationSummary,
+                null,
+                2,
+            );
+            document.getElementById("rawJson").textContent = JSON.stringify(result.rawFields, null, 2);
+
+            resultsSection.classList.add("show");
+            resultsSection.scrollIntoView({ behavior: "smooth", block: "start" });
         }
 
-        // Tab switching
         function switchTab(tabName) {
-            // Update buttons
-            document.querySelectorAll('.tab-btn').forEach(btn => {
-                btn.classList.remove('active');
-                if (btn.getAttribute('data-tab') === tabName) {
-                    btn.classList.add('active');
-                }
+            document.querySelectorAll(".tab-btn").forEach((btn) => {
+                btn.classList.toggle("active", btn.getAttribute("data-tab") === tabName);
             });
 
-            // Update content
-            document.querySelectorAll('.tab-content').forEach(content => {
-                content.classList.remove('active');
+            document.querySelectorAll(".tab-content").forEach((content) => {
+                content.classList.remove("active");
             });
-            document.getElementById(`${tabName}Tab`).classList.add('active');
+            const activeTab = document.getElementById(`${tabName}Tab`);
+            if (activeTab) {
+                activeTab.classList.add("active");
+            }
         }
 
-        // Add event listeners to tab buttons
-        document.querySelectorAll('.tab-btn').forEach(btn => {
-            btn.addEventListener('click', function() {
-                const tabName = this.getAttribute('data-tab');
+        document.querySelectorAll(".tab-btn").forEach((btn) => {
+            btn.addEventListener("click", function () {
+                const tabName = this.getAttribute("data-tab");
                 switchTab(tabName);
             });
         });
 
-        // Drag and drop
-        uploadArea.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            uploadArea.style.borderColor = 'rgba(255, 255, 255, 0.6)';
-            uploadArea.style.background = 'rgba(255, 255, 255, 0.05)';
+        uploadArea.addEventListener("click", () => {
+            fileInput.click();
         });
 
-        uploadArea.addEventListener('dragleave', () => {
-            uploadArea.style.borderColor = 'rgba(255, 255, 255, 0.4)';
-            uploadArea.style.background = 'transparent';
-        });
-
-        uploadArea.addEventListener('drop', (e) => {
-            e.preventDefault();
-            uploadArea.style.borderColor = 'rgba(255, 255, 255, 0.4)';
-            uploadArea.style.background = 'transparent';
-            
-            const file = e.dataTransfer.files[0];
+        fileInput.addEventListener("change", (event) => {
+            const file = event.target.files[0];
             if (file) {
-                fileInput.files = e.dataTransfer.files;
-                selectedFile.textContent = `📄 ${file.name}`;
-                selectedFile.classList.add('show');
-                analyzeBtn.classList.add('show');
+                selectedFile.textContent = `${ICONS.file} ${file.name}`;
+                selectedFile.classList.add("show");
+                analyzeBtn.classList.add("show");
+                setStatus(`Ready to analyze ${file.name}.`, "info");
+            }
+        });
+
+        analyzeBtn.addEventListener("click", async () => {
+            const file = fileInput.files[0];
+            if (!file) {
+                setStatus("Please choose a document before analyzing.", "error");
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append("file", file);
+
+            analyzeBtn.disabled = true;
+            analyzeBtn.innerHTML = "<span class='spinner'></span> Analyzing Document...";
+            setStatus("Uploading document to Azure Document Intelligence...", "info");
+
+            try {
+                const response = await fetch("/uad/validate", {
+                    method: "POST",
+                    body: formData,
+                });
+                if (!response.ok) {
+                    throw new Error(`Request failed with status ${response.status}`);
+                }
+
+                const data = await response.json();
+                const transformed = transformApiResponse(data);
+                displayResults(transformed);
+
+                if (data.fallback_used) {
+                    setStatus("Analysis completed using fallback payload.", "info");
+                } else {
+                    setStatus(`Analysis completed. Validation status: ${data.status}.`, "success");
+                }
+            } catch (error) {
+                setStatus(`Unable to analyze document: ${error.message}`, "error");
+            } finally {
+                analyzeBtn.disabled = false;
+                analyzeBtn.innerHTML = DEFAULT_ANALYZE_LABEL;
+            }
+        });
+
+        demoBtn.addEventListener("click", async () => {
+            demoBtn.disabled = true;
+            demoBtn.innerHTML = "<span class='spinner'></span> Loading Demo...";
+            setStatus("Loading demo analysis results...", "info");
+
+            try {
+                const response = await fetch("/uad/demo");
+                if (!response.ok) {
+                    throw new Error(`Request failed with status ${response.status}`);
+                }
+                const data = await response.json();
+                const transformed = transformApiResponse(data);
+                displayResults(transformed);
+                setStatus("Showing demo analysis snapshot.", "info");
+            } catch (error) {
+                setStatus(`Unable to load demo results: ${error.message}`, "error");
+            } finally {
+                demoBtn.disabled = false;
+                demoBtn.innerHTML = DEFAULT_DEMO_LABEL;
+            }
+        });
+
+        uploadArea.addEventListener("dragover", (event) => {
+            event.preventDefault();
+            uploadArea.style.borderColor = "rgba(255, 255, 255, 0.6)";
+            uploadArea.style.background = "rgba(255, 255, 255, 0.05)";
+        });
+
+        uploadArea.addEventListener("dragleave", () => {
+            uploadArea.style.borderColor = "rgba(255, 255, 255, 0.4)";
+            uploadArea.style.background = "transparent";
+        });
+
+        uploadArea.addEventListener("drop", (event) => {
+            event.preventDefault();
+            uploadArea.style.borderColor = "rgba(255, 255, 255, 0.4)";
+            uploadArea.style.background = "transparent";
+
+            const file = event.dataTransfer.files[0];
+            if (file) {
+                fileInput.files = event.dataTransfer.files;
+                selectedFile.textContent = `${ICONS.file} ${file.name}`;
+                selectedFile.classList.add("show");
+                analyzeBtn.classList.add("show");
+                setStatus(`Ready to analyze ${file.name}.`, "info");
             }
         });
     </script>

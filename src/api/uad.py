@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import json
 import os
 import tempfile
+from pathlib import Path
 
 from fastapi import APIRouter, File, HTTPException, UploadFile
 
@@ -9,6 +11,23 @@ from ..uad.azure_extract import ExtractionResult, extract_1004_fields
 from ..uad.validator import validate
 
 router = APIRouter(prefix="/uad", tags=["uad"])
+
+
+def _fallback_candidates() -> list[Path]:
+    candidates: list[Path] = []
+    env_path = os.getenv("AZURE_DOCINTEL_FALLBACK_JSON")
+    if env_path:
+        candidates.append(Path(env_path))
+    candidates.append(Path(__file__).resolve().parents[2] / "samples" / "fallback_extract.json")
+    return candidates
+
+
+def _load_fallback_snapshot() -> dict[str, object]:
+    for candidate in _fallback_candidates():
+        if candidate and candidate.exists():
+            with candidate.open("r", encoding="utf-8") as handle:
+                return json.load(handle)
+    raise HTTPException(status_code=404, detail="Fallback sample not available")
 
 
 @router.post("/validate")
@@ -38,3 +57,30 @@ async def uad_validate(file: UploadFile = File(...)):  # noqa: B008
         }
     finally:
         os.unlink(path)
+
+
+@router.get("/demo")
+async def uad_demo() -> dict[str, object]:
+    snapshot = _load_fallback_snapshot()
+    payload = snapshot.get("payload")
+    if payload is None:
+        payload = {
+            "subject": snapshot.get("subject", {}),
+            "contract": snapshot.get("contract", {}),
+            "appraiser": snapshot.get("appraiser", {}),
+        }
+    validation = validate(
+        payload,
+        "schema/uad_1004_v1.json",
+        "registry/fields.json",
+    )
+    return {
+        "payload": payload,
+        "raw_fields": snapshot.get("raw_fields", {}),
+        "missing_fields": snapshot.get("missing_fields", []),
+        "low_confidence_fields": snapshot.get("low_confidence_fields", []),
+        "business_flags": snapshot.get("business_flags", []),
+        "model_id": snapshot.get("model_id", "demo-fallback"),
+        "fallback_used": snapshot.get("fallback_used", True),
+        **validation,
+    }
