@@ -69,7 +69,7 @@ def test_index_route_serves_html():
     client = TestClient(app)
     response = client.get("/")
     assert response.status_code == 200
-    assert "Mortgage 1004 Document Intelligence" in response.text
+    assert "Form 1004 Analysis Suite" in response.text
 
 
 def test_validate_endpoint_returns_fallback(tmp_path):
@@ -86,3 +86,12 @@ def test_validate_endpoint_returns_fallback(tmp_path):
     assert "Subject.PropertyAddress.street" in payload["raw_fields"]
     assert payload["payload"]["appraiser"]["name"] == "Jordan Appraiser"
     assert payload["business_flags"][0]["issue"] == "none_selected"
+
+
+def test_demo_endpoint_returns_payload():
+    client = TestClient(app)
+    response = client.get("/uad/demo")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["fallback_used"] is True
+    assert data["model_id"] == "fallback-ui-test"

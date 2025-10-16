@@ -72,12 +72,13 @@ store them in `.env` for local development.
 ## Browser Demo
 
 Start the FastAPI service (`make run`) and open [http://localhost:8000/](http://localhost:8000/).
-The lightweight UI lets you upload a Form 1004 PDF, forwards it to Azure Document
-Intelligence, and displays:
+The glassmorphism UI streams files straight to the `/uad/validate` backend and now includes:
 
-- Validation findings against the canonical schema and UAD rule registry.
-- Raw fields, types, confidence scores, missing-field heuristics, and business-rule flags.
-- A banner when the local fallback payload is used because Azure is unavailable.
+- Drag-and-drop or file-select upload with an `Analyze Document` action.
+- A `View Demo Results` button that calls the new `/uad/demo` endpoint and renders the configured fallback payload.
+- Completion, missing-field, low-confidence, and business-flag stats with contextual colour cues.
+- Rich lists for missing and low-confidence fields plus business heuristics.
+- Tabbed JSON viewers for the validation summary, raw Azure fields, and canonical payload.
 
 You can pre-populate the demo with `samples/fallback_extract.json` to run without
 network connectivity or to simulate Azure outages.
@@ -199,10 +200,11 @@ make test
 
 ## API Surface
 
-- `POST /uad/validate`: Accepts a PDF upload, extracts subject and contract data,
+- `POST /uad/validate`: Accepts a PDF upload, extracts subject, contract, and appraiser data,
   validates against `schema/uad_1004_v1.json` and `registry/fields.json`, and returns
-  canonical data (subject, contract, appraiser), raw field snapshots, business flags,
-  and validation findings.
+  canonical data, raw field snapshots, business flags, and validation findings.
+- `GET /uad/demo`: Returns the configured fallback extraction and validation artifacts for UI demos.
+- `GET /`: Serves the interactive front-end from `form-1004-analysis-liquidglass.html`.
 - `GET /health`: Simple health probe.
 
 The validator enforces JSON Schema constraints, field-level requirements, and

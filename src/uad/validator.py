@@ -5,7 +5,7 @@ import json
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, cast
+from typing import Any, Dict, List, cast
 
 from jsonschema import Draft202012Validator
 
@@ -17,7 +17,7 @@ class Finding:
     severity: str
     rule: str
 
-    def as_dict(self) -> dict[str, Any]:
+    def as_dict(self) -> Dict[str, Any]:
         return {
             "field": self.field,
             "message": self.message,
@@ -33,13 +33,13 @@ class AttrDict(dict):
         return self.get(item)
 
 
-def _load_json(path: str | Path) -> dict[str, Any]:
+def _load_json(path: str | Path) -> Dict[str, Any]:
     data_path = Path(path)
     if not data_path.is_absolute():
         base_dir = Path(__file__).resolve().parents[2]
         data_path = base_dir / data_path
     with data_path.open("r", encoding="utf-8") as handle:
-        return cast(dict[str, Any], json.load(handle))
+        return cast(Dict[str, Any], json.load(handle))
 
 
 def _to_attr(value: Any) -> Any:
@@ -62,7 +62,7 @@ def _normalize_expr(expr: str) -> str:
     return normalized
 
 
-def _evaluate_node(node: ast.AST, context: dict[str, Any]) -> Any:
+def _evaluate_node(node: ast.AST, context: Dict[str, Any]) -> Any:
     if isinstance(node, ast.Expression):
         return _evaluate_node(node.body, context)
     if isinstance(node, ast.BoolOp):
@@ -76,7 +76,7 @@ def _evaluate_node(node: ast.AST, context: dict[str, Any]) -> Any:
         return not bool(_evaluate_node(node.operand, context))
     if isinstance(node, ast.Compare):
         left = _evaluate_node(node.left, context)
-        for operator, comparator in zip(node.ops, node.comparators, strict=False):
+        for operator, comparator in zip(node.ops, node.comparators):
             right = _evaluate_node(comparator, context)
             if isinstance(operator, ast.Eq):
                 outcome = left == right
@@ -130,7 +130,7 @@ def _evaluate_node(node: ast.AST, context: dict[str, Any]) -> Any:
     raise ValueError(f"Unsupported expression: {ast.dump(node)}")
 
 
-def _safe_eval(expr: str, context: dict[str, Any]) -> bool:
+def _safe_eval(expr: str, context: Dict[str, Any]) -> bool:
     if not expr:
         return False
     normalized = _normalize_expr(expr)
@@ -145,7 +145,7 @@ def _safe_eval(expr: str, context: dict[str, Any]) -> bool:
     return bool(result)
 
 
-def _get_field(payload: dict[str, Any], path: str) -> Any:
+def _get_field(payload: Dict[str, Any], path: str) -> Any:
     parts = path.split(".")
     current: Any = payload
     for part in parts:
@@ -161,14 +161,14 @@ def _is_missing(value: Any) -> bool:
         return True
     if isinstance(value, str):
         return value.strip() == ""
-    if isinstance(value, list | dict):
+    if isinstance(value, (list, dict)):
         return len(value) == 0
     return False
 
 
-def _schema_findings(payload: dict[str, Any], schema: dict[str, Any]) -> list[Finding]:
+def _schema_findings(payload: Dict[str, Any], schema: Dict[str, Any]) -> List[Finding]:
     validator = Draft202012Validator(schema)
-    findings: list[Finding] = []
+    findings: List[Finding] = []
     for error in validator.iter_errors(payload):
         path = ".".join(str(p) for p in error.path)
         findings.append(
@@ -183,9 +183,9 @@ def _schema_findings(payload: dict[str, Any], schema: dict[str, Any]) -> list[Fi
 
 
 def _field_requirements(
-    payload: dict[str, Any], registry: dict[str, Any], context: dict[str, Any]
-) -> list[Finding]:
-    findings: list[Finding] = []
+    payload: Dict[str, Any], registry: Dict[str, Any], context: Dict[str, Any]
+) -> List[Finding]:
+    findings: List[Finding] = []
     for field in registry.get("fields", []):
         code = field.get("code")
         if not code:
@@ -212,9 +212,9 @@ def _field_requirements(
 
 
 def _cross_rule_findings(
-    payload: dict[str, Any], registry: dict[str, Any], context: dict[str, Any]
-) -> list[Finding]:
-    findings: list[Finding] = []
+    payload: Dict[str, Any], registry: Dict[str, Any], context: Dict[str, Any]
+) -> List[Finding]:
+    findings: List[Finding] = []
     for rule in registry.get("cross_rules", []):
         expr = rule.get("expr")
         if not expr:
@@ -248,10 +248,10 @@ def _cross_rule_findings(
     return findings
 
 
-def validate(payload: dict[str, Any], schema_path: str, registry_path: str) -> dict[str, Any]:
+def validate(payload: Dict[str, Any], schema_path: str, registry_path: str) -> Dict[str, Any]:
     schema = _load_json(schema_path)
     registry = _load_json(registry_path)
-    findings: list[Finding] = []
+    findings: List[Finding] = []
 
     findings.extend(_schema_findings(payload, schema))
 

@@ -3,12 +3,32 @@ from __future__ import annotations
 import os
 import tempfile
 
+from typing import Dict
+
 from fastapi import APIRouter, File, HTTPException, UploadFile
 
-from ..uad.azure_extract import ExtractionResult, extract_1004_fields
+from ..uad.azure_extract import ExtractionResult, extract_1004_fields, load_demo_result
 from ..uad.validator import validate
 
 router = APIRouter(prefix="/uad", tags=["uad"])
+
+
+def _build_response(extraction: ExtractionResult) -> Dict[str, object]:
+    validation = validate(
+        extraction.payload,
+        "schema/uad_1004_v1.json",
+        "registry/fields.json",
+    )
+    return {
+        "payload": extraction.payload,
+        "raw_fields": extraction.raw_fields,
+        "missing_fields": extraction.missing_fields,
+        "low_confidence_fields": extraction.low_confidence_fields,
+        "business_flags": extraction.business_flags,
+        "model_id": extraction.model_id,
+        "fallback_used": extraction.fallback_used,
+        **validation,
+    }
 
 
 @router.post("/validate")
@@ -21,20 +41,15 @@ async def uad_validate(file: UploadFile = File(...)):  # noqa: B008
         path = tmp.name
     try:
         extraction: ExtractionResult = extract_1004_fields(path)
-        validation = validate(
-            extraction.payload,
-            "schema/uad_1004_v1.json",
-            "registry/fields.json",
-        )
-        return {
-            "payload": extraction.payload,
-            "raw_fields": extraction.raw_fields,
-            "missing_fields": extraction.missing_fields,
-            "low_confidence_fields": extraction.low_confidence_fields,
-            "business_flags": extraction.business_flags,
-            "model_id": extraction.model_id,
-            "fallback_used": extraction.fallback_used,
-            **validation,
-        }
+        return _build_response(extraction)
     finally:
         os.unlink(path)
+
+
+@router.get("/demo")
+async def uad_demo() -> Dict[str, object]:
+    try:
+        extraction: ExtractionResult = load_demo_result()
+    except RuntimeError as exc:  # pragma: no cover - runtime path
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    return _build_response(extraction)

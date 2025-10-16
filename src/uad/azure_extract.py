@@ -355,7 +355,7 @@ def _value_is_missing(value: Any) -> bool:
         if not stripped:
             return True
         return stripped.lower() == "(none selected)"
-    if isinstance(value, list | tuple | set):
+    if isinstance(value, (list, tuple, set)):
         return all(_value_is_missing(v) for v in value)
     if isinstance(value, dict):
         return all(_value_is_missing(v) for v in value.values())
@@ -374,7 +374,7 @@ def _build_business_flags(raw_fields: dict[str, dict[str, Any]]) -> list[dict[st
         values_to_check: list[str] = []
         if isinstance(value, str):
             values_to_check.append(value)
-        elif isinstance(value, list | tuple | set):
+        elif isinstance(value, (list, tuple, set)):
             values_to_check.extend(str(item) for item in value)
         if isinstance(content, str):
             values_to_check.append(content)
@@ -544,3 +544,8 @@ def extract_1004_fields(pdf_path: str, model_id: str | None = None) -> Extractio
         business_flags=business_flags,
         model_id=mid,
     )
+
+
+def load_demo_result(model_id: str | None = None) -> ExtractionResult:
+    """Return the configured fallback payload for demo purposes."""
+    return _load_fallback(model_id)
