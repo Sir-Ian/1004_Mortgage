@@ -178,8 +178,8 @@ and whether a fallback payload was used) so you can extend the schema as needed.
 - **appraiser** – Name, firm, contact details, appraised value, signature presence,
   effective/signature dates, property-status selections, and the company/property addresses
   lifted directly from the Azure raw fields.
-- **photos** – Front/rear/street/interior photo call-outs with page references so the
-  image inventory is easy to audit.
+- **photos** – Front/rear/street/interior photo call-outs with page references, Azure
+  presence booleans, and document references so the image inventory is easy to audit.
 - **reconciliation** – Appraisal type and indicated values for each approach, plus the
   effective date captured in the reconciliation section of the 1004.
 - **sales_comparison** – Comparable sales extracted from the grid, with sale price,
@@ -208,6 +208,7 @@ The `/uad/validate` response also returns:
 - `business_flags` – A dedicated space for higher-level heuristics. Currently it records
   `(None Selected)` findings and is ready for additional rules as underwriting logic
   matures.
+- `ruleset_version` – Semantic version of the current validation rule bundle.
 
 ## Development
 

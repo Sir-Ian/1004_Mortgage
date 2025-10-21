@@ -145,7 +145,8 @@
           "properties": {
             "caption": { "type": "string" },
             "page_number": { "type": "integer" },
-            "present": { "type": "boolean" }
+            "present": { "type": "boolean" },
+            "reference": { "type": "string", "format": "uri" }
           },
           "additionalProperties": false
         },
@@ -153,7 +154,9 @@
           "type": "object",
           "properties": {
             "caption": { "type": "string" },
-            "page_number": { "type": "integer" }
+            "page_number": { "type": "integer" },
+            "present": { "type": "boolean" },
+            "reference": { "type": "string", "format": "uri" }
           },
           "additionalProperties": false
         },
@@ -161,7 +164,9 @@
           "type": "object",
           "properties": {
             "caption": { "type": "string" },
-            "page_number": { "type": "integer" }
+            "page_number": { "type": "integer" },
+            "present": { "type": "boolean" },
+            "reference": { "type": "string", "format": "uri" }
           },
           "additionalProperties": false
         },
@@ -169,7 +174,9 @@
           "type": "object",
           "properties": {
             "caption": { "type": "string" },
-            "page_number": { "type": "integer" }
+            "page_number": { "type": "integer" },
+            "present": { "type": "boolean" },
+            "reference": { "type": "string", "format": "uri" }
           },
           "additionalProperties": false
         },
@@ -177,7 +184,9 @@
           "type": "object",
           "properties": {
             "caption": { "type": "string" },
-            "page_number": { "type": "integer" }
+            "page_number": { "type": "integer" },
+            "present": { "type": "boolean" },
+            "reference": { "type": "string", "format": "uri" }
           },
           "additionalProperties": false
         },
@@ -185,7 +194,9 @@
           "type": "object",
           "properties": {
             "caption": { "type": "string" },
-            "page_number": { "type": "integer" }
+            "page_number": { "type": "integer" },
+            "present": { "type": "boolean" },
+            "reference": { "type": "string", "format": "uri" }
           },
           "additionalProperties": false
         },
@@ -193,7 +204,9 @@
           "type": "object",
           "properties": {
             "caption": { "type": "string" },
-            "page_number": { "type": "integer" }
+            "page_number": { "type": "integer" },
+            "present": { "type": "boolean" },
+            "reference": { "type": "string", "format": "uri" }
           },
           "additionalProperties": false
         }

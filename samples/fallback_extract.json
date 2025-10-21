@@ -54,15 +54,32 @@
       "front_exterior": {
         "caption": "Front elevation",
         "page_number": 3,
-        "present": true
+        "present": true,
+        "reference": "https://example.com/photos/front-exterior.jpg"
       },
       "rear_exterior": {
         "caption": "Rear elevation",
-        "page_number": 4
+        "page_number": 4,
+        "present": true,
+        "reference": "https://example.com/photos/rear-exterior.jpg"
       },
       "street_scene": {
         "caption": "Street scene",
-        "page_number": 5
+        "page_number": 5,
+        "present": true,
+        "reference": "https://example.com/photos/street-scene.jpg"
+      },
+      "kitchen": {
+        "present": false
+      },
+      "bathroom": {
+        "present": false
+      },
+      "living_room": {
+        "present": false
+      },
+      "other": {
+        "present": false
       }
     },
     "reconciliation": {
@@ -191,6 +208,104 @@
       "confidence": 0.9,
       "leaf": true
     },
+    "Photos.FrontExterior.Reference": {
+      "type": "string",
+      "value": "https://example.com/photos/front-exterior.jpg",
+      "content": "https://example.com/photos/front-exterior.jpg",
+      "confidence": 0.85,
+      "leaf": true
+    },
+    "Photos.FrontExterior.Present": {
+      "type": "boolean",
+      "value": true,
+      "content": "true",
+      "confidence": 0.9,
+      "leaf": true
+    },
+    "Photos.RearExterior.Caption": {
+      "type": "string",
+      "value": "Rear elevation",
+      "content": "Rear elevation",
+      "confidence": 0.88,
+      "leaf": true
+    },
+    "Photos.RearExterior.PageNumber": {
+      "type": "number",
+      "value": 4,
+      "content": "4",
+      "confidence": 0.88,
+      "leaf": true
+    },
+    "Photos.RearExterior.Reference": {
+      "type": "string",
+      "value": "https://example.com/photos/rear-exterior.jpg",
+      "content": "https://example.com/photos/rear-exterior.jpg",
+      "confidence": 0.83,
+      "leaf": true
+    },
+    "Photos.RearExterior.Present": {
+      "type": "boolean",
+      "value": true,
+      "content": "true",
+      "confidence": 0.88,
+      "leaf": true
+    },
+    "Photos.StreetScene.Caption": {
+      "type": "string",
+      "value": "Street scene",
+      "content": "Street scene",
+      "confidence": 0.87,
+      "leaf": true
+    },
+    "Photos.StreetScene.PageNumber": {
+      "type": "number",
+      "value": 5,
+      "content": "5",
+      "confidence": 0.87,
+      "leaf": true
+    },
+    "Photos.StreetScene.Reference": {
+      "type": "string",
+      "value": "https://example.com/photos/street-scene.jpg",
+      "content": "https://example.com/photos/street-scene.jpg",
+      "confidence": 0.82,
+      "leaf": true
+    },
+    "Photos.StreetScene.Present": {
+      "type": "boolean",
+      "value": true,
+      "content": "true",
+      "confidence": 0.87,
+      "leaf": true
+    },
+    "Photos.Kitchen.Present": {
+      "type": "boolean",
+      "value": false,
+      "content": "false",
+      "confidence": 0.6,
+      "leaf": true
+    },
+    "Photos.Bathroom.Present": {
+      "type": "boolean",
+      "value": false,
+      "content": "false",
+      "confidence": 0.6,
+      "leaf": true
+    },
+    "Photos.LivingRoom.Present": {
+      "type": "boolean",
+      "value": false,
+      "content": "false",
+      "confidence": 0.6,
+      "leaf": true
+    },
+    "Photos.Other.Present": {
+      "type": "boolean",
+      "value": false,
+      "content": "false",
+      "confidence": 0.6,
+      "leaf": true
+    },
     "Reconciliation.AppraisalType": {
       "type": "selectionGroup",
       "value": "Desktop",
@@ -286,15 +401,33 @@
     "photos": {
       "FrontExterior": {
         "Caption": "Front elevation",
-        "PageNumber": 3
+        "PageNumber": 3,
+        "Reference": "https://example.com/photos/front-exterior.jpg",
+        "Present": true
       },
       "RearExterior": {
         "Caption": "Rear elevation",
-        "PageNumber": 4
+        "PageNumber": 4,
+        "Reference": "https://example.com/photos/rear-exterior.jpg",
+        "Present": true
       },
       "StreetScene": {
         "Caption": "Street scene",
-        "PageNumber": 5
+        "PageNumber": 5,
+        "Reference": "https://example.com/photos/street-scene.jpg",
+        "Present": true
+      },
+      "Kitchen": {
+        "Present": false
+      },
+      "Bathroom": {
+        "Present": false
+      },
+      "LivingRoom": {
+        "Present": false
+      },
+      "Other": {
+        "Present": false
       }
     },
     "reconciliation": {

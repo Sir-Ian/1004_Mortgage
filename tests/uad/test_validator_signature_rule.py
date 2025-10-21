@@ -37,13 +37,48 @@ def _with_signature_dependencies(payload: dict[str, object]) -> dict[str, object
     enriched = deepcopy(payload)
     enriched.setdefault("photos", {})
     enriched["photos"] = {
-        "front_exterior": {"caption": "Front", "page_number": 2},
-        "rear_exterior": {"caption": "Rear", "page_number": 3},
-        "street_scene": {"caption": "Street", "page_number": 4},
-        "kitchen": {"caption": "Kitchen", "page_number": 5},
-        "bathroom": {"caption": "Bathroom", "page_number": 6},
-        "living_room": {"caption": "Living", "page_number": 7},
-        "other": {"caption": "Garage", "page_number": 8},
+        "front_exterior": {
+            "caption": "Front",
+            "page_number": 2,
+            "present": True,
+            "reference": "https://example.com/photos/front.jpg",
+        },
+        "rear_exterior": {
+            "caption": "Rear",
+            "page_number": 3,
+            "present": True,
+            "reference": "https://example.com/photos/rear.jpg",
+        },
+        "street_scene": {
+            "caption": "Street",
+            "page_number": 4,
+            "present": True,
+            "reference": "https://example.com/photos/street.jpg",
+        },
+        "kitchen": {
+            "caption": "Kitchen",
+            "page_number": 5,
+            "present": True,
+            "reference": "https://example.com/photos/kitchen.jpg",
+        },
+        "bathroom": {
+            "caption": "Bathroom",
+            "page_number": 6,
+            "present": True,
+            "reference": "https://example.com/photos/bathroom.jpg",
+        },
+        "living_room": {
+            "caption": "Living",
+            "page_number": 7,
+            "present": True,
+            "reference": "https://example.com/photos/living.jpg",
+        },
+        "other": {
+            "caption": "Garage",
+            "page_number": 8,
+            "present": True,
+            "reference": "https://example.com/photos/other.jpg",
+        },
     }
     enriched["certifications"] = {
         "appraiser": {
@@ -78,6 +113,10 @@ def test_signature_rule_errors_when_fields_missing() -> None:
     assert finding["field"] == "certifications.appraiser.name"
     assert "Sections A–D" in finding["message"]
     assert finding["severity"] == "error"
+    r02_findings = [f for f in findings if f["rule"] == "R-02"]
+    assert len(r02_findings) == 1
+    assert "Photos." in r02_findings[0]["message"]
+    assert r02_findings[0]["severity"] == "error"
     assert result["status"] == "fail"
 
 
@@ -85,7 +124,9 @@ def test_signature_rule_passes_when_fields_present() -> None:
     payload = _with_signature_dependencies(_base_payload())
     result = validate(payload, SCHEMA, REGISTRY)
     assert all(f["rule"] != "R-01" for f in result["findings"])
+    assert all(f["rule"] != "R-02" for f in result["findings"])
     assert result["status"] == "pass"
+    assert result["ruleset_version"] == "1.1.0"
 
 
 def test_signature_rule_skips_when_signature_absent() -> None:
@@ -96,6 +137,7 @@ def test_signature_rule_skips_when_signature_absent() -> None:
     }
     result = validate(payload, SCHEMA, REGISTRY)
     assert all(f["rule"] != "R-01" for f in result["findings"])
+    assert all(f["rule"] != "R-02" for f in result["findings"])
 
 
 def test_signature_rule_skips_when_date_missing() -> None:
@@ -106,3 +148,24 @@ def test_signature_rule_skips_when_date_missing() -> None:
     }
     result = validate(payload, SCHEMA, REGISTRY)
     assert all(f["rule"] != "R-01" for f in result["findings"])
+    assert all(f["rule"] != "R-02" for f in result["findings"])
+
+
+def test_photo_rule_flags_missing_reference() -> None:
+    payload = _with_signature_dependencies(_base_payload())
+    payload["photos"]["kitchen"]["reference"] = ""
+    result = validate(payload, SCHEMA, REGISTRY)
+    r02_findings = [f for f in result["findings"] if f["rule"] == "R-02"]
+    assert len(r02_findings) == 1
+    assert "Photos.Kitchen.Reference" in r02_findings[0]["message"]
+    assert result["status"] == "fail"
+
+
+def test_photo_rule_flags_missing_presence_boolean() -> None:
+    payload = _with_signature_dependencies(_base_payload())
+    payload["photos"]["bathroom"]["present"] = False
+    result = validate(payload, SCHEMA, REGISTRY)
+    r02_findings = [f for f in result["findings"] if f["rule"] == "R-02"]
+    assert len(r02_findings) == 1
+    assert "Photos.Bathroom.Present" in r02_findings[0]["message"]
+    assert result["status"] == "fail"

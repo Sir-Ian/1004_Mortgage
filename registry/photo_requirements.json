@@ -1,0 +1,23 @@
+{
+  "meta": {
+    "form": "1004",
+    "version": "v1",
+    "rule": "R-02"
+  },
+  "photos": [
+    {"azure_code": "Photos.FrontExterior.Reference", "payload_path": "photos.front_exterior.reference"},
+    {"azure_code": "Photos.FrontExterior.Present", "payload_path": "photos.front_exterior.present"},
+    {"azure_code": "Photos.RearExterior.Reference", "payload_path": "photos.rear_exterior.reference"},
+    {"azure_code": "Photos.RearExterior.Present", "payload_path": "photos.rear_exterior.present"},
+    {"azure_code": "Photos.StreetScene.Reference", "payload_path": "photos.street_scene.reference"},
+    {"azure_code": "Photos.StreetScene.Present", "payload_path": "photos.street_scene.present"},
+    {"azure_code": "Photos.Kitchen.Reference", "payload_path": "photos.kitchen.reference"},
+    {"azure_code": "Photos.Kitchen.Present", "payload_path": "photos.kitchen.present"},
+    {"azure_code": "Photos.Bathroom.Reference", "payload_path": "photos.bathroom.reference"},
+    {"azure_code": "Photos.Bathroom.Present", "payload_path": "photos.bathroom.present"},
+    {"azure_code": "Photos.LivingRoom.Reference", "payload_path": "photos.living_room.reference"},
+    {"azure_code": "Photos.LivingRoom.Present", "payload_path": "photos.living_room.present"},
+    {"azure_code": "Photos.Other.Reference", "payload_path": "photos.other.reference"},
+    {"azure_code": "Photos.Other.Present", "payload_path": "photos.other.present"}
+  ]
+}
