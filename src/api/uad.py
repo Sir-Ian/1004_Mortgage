@@ -4,6 +4,7 @@ import json
 import os
 import tempfile
 from pathlib import Path
+from typing import Any, cast
 
 from fastapi import APIRouter, File, HTTPException, UploadFile
 
@@ -22,11 +23,11 @@ def _fallback_candidates() -> list[Path]:
     return candidates
 
 
-def _load_fallback_snapshot() -> dict[str, object]:
+def _load_fallback_snapshot() -> dict[str, Any]:
     for candidate in _fallback_candidates():
         if candidate and candidate.exists():
             with candidate.open("r", encoding="utf-8") as handle:
-                return json.load(handle)
+                return cast(dict[str, Any], json.load(handle))
     raise HTTPException(status_code=404, detail="Fallback sample not available")
 
 
@@ -47,6 +48,7 @@ async def uad_validate(file: UploadFile = File(...)):  # noqa: B008
         )
         return {
             "payload": extraction.payload,
+            "raw_payload": extraction.raw_payload,
             "raw_fields": extraction.raw_fields,
             "missing_fields": extraction.missing_fields,
             "low_confidence_fields": extraction.low_confidence_fields,
@@ -62,12 +64,14 @@ async def uad_validate(file: UploadFile = File(...)):  # noqa: B008
 @router.get("/demo")
 async def uad_demo() -> dict[str, object]:
     snapshot = _load_fallback_snapshot()
-    payload = snapshot.get("payload")
-    if payload is None:
+    payload_obj = snapshot.get("payload")
+    if isinstance(payload_obj, dict):
+        payload = payload_obj
+    else:
         payload = {
-            "subject": snapshot.get("subject", {}),
-            "contract": snapshot.get("contract", {}),
-            "appraiser": snapshot.get("appraiser", {}),
+            "subject": cast(dict[str, Any], snapshot.get("subject", {})),
+            "contract": cast(dict[str, Any], snapshot.get("contract", {})),
+            "appraiser": cast(dict[str, Any], snapshot.get("appraiser", {})),
         }
     validation = validate(
         payload,
@@ -76,6 +80,7 @@ async def uad_demo() -> dict[str, object]:
     )
     return {
         "payload": payload,
+        "raw_payload": snapshot.get("raw_payload", {}),
         "raw_fields": snapshot.get("raw_fields", {}),
         "missing_fields": snapshot.get("missing_fields", []),
         "low_confidence_fields": snapshot.get("low_confidence_fields", []),

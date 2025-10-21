@@ -28,6 +28,7 @@ NONE_SELECTED_MESSAGE = "Azure Document Intelligence returned '(None Selected)' 
 @dataclass
 class ExtractionResult:
     payload: dict[str, Any]
+    raw_payload: dict[str, Any]
     raw_fields: dict[str, dict[str, Any]]
     missing_fields: list[str]
     low_confidence_fields: list[str]
@@ -72,6 +73,7 @@ def _load_fallback(model_id: str | None = None) -> ExtractionResult:
             "subject": data.get("subject", {}),
             "contract": data.get("contract", {}),
         }
+    raw_payload = data.get("raw_payload", data.get("raw_sections", {})) or {}
     raw_fields = data.get("raw_fields", {})
     missing_fields = data.get("missing_fields", [])
     low_confidence_fields = data.get("low_confidence_fields", [])
@@ -86,6 +88,7 @@ def _load_fallback(model_id: str | None = None) -> ExtractionResult:
     fallback_used = bool(data.get("fallback_used", True))
     return ExtractionResult(
         payload=payload,
+        raw_payload=raw_payload,
         raw_fields=raw_fields,
         missing_fields=missing_fields,
         low_confidence_fields=low_confidence_fields,
@@ -222,6 +225,215 @@ def _phone_from_field(field: DocumentField | None) -> str | None:
     if len(digits) == 10:
         return f"{digits[0:3]}-{digits[3:6]}-{digits[6:10]}"
     return digits
+
+
+def _signature_present(field: DocumentField | None) -> bool | None:
+    if field is None:
+        return None
+    if field.value_boolean is not None:
+        return bool(field.value_boolean)
+    normalized = _normalize_field_value(field)
+    if isinstance(normalized, dict):
+        for candidate in ("is_signed", "present", "value", "signed"):
+            if candidate in normalized and normalized[candidate] is not None:
+                return bool(normalized[candidate])
+    if isinstance(normalized, list | tuple | set):
+        return any(bool(item) for item in normalized)
+    if isinstance(normalized, str):
+        lowered = normalized.strip().lower()
+        if lowered in {"yes", "signed", "true"}:
+            return True
+        if lowered in {"no", "unsigned", "false"}:
+            return False
+    if field.content:
+        lowered = field.content.strip().lower()
+        if lowered in {"yes", "signed"}:
+            return True
+        if lowered in {"no", "unsigned"}:
+            return False
+    return None
+
+
+def _photo_entry(field: DocumentField | None) -> dict[str, Any]:
+    if field is None:
+        return {}
+    normalized = _normalize_field_value(field)
+    if isinstance(normalized, dict):
+        entry: dict[str, Any] = {}
+        for key, value in normalized.items():
+            if value in (None, "", []):
+                continue
+            lowered = key.lower()
+            if lowered in {"caption", "description", "comments", "comment"}:
+                entry.setdefault("caption", value)
+            elif lowered in {"pagenumber", "page", "page_number"}:
+                try:
+                    entry["page_number"] = int(value)
+                except Exception:
+                    entry["page_number"] = value
+            elif lowered in {"url", "reference", "image"}:
+                entry["reference"] = value
+            elif lowered in {"present", "value", "is_present"}:
+                entry["present"] = bool(value)
+            else:
+                entry[key] = value
+        if not entry and isinstance(field.content, str) and field.content.strip():
+            entry["caption"] = field.content.strip()
+        return entry
+    if isinstance(normalized, list):
+        return {"values": [item for item in normalized if item not in (None, "", [])]}
+    if isinstance(normalized, str):
+        return {"caption": normalized}
+    if isinstance(normalized, bool):
+        return {"present": normalized}
+    if normalized is not None:
+        return {"value": normalized}
+    if field.content:
+        return {"caption": field.content.strip()}
+    return {}
+
+
+def _reconciliation_section(doc: AnalyzedDocument) -> dict[str, Any]:
+    reconciliation_field = _field_by_path(doc, "Reconciliation")
+    if reconciliation_field is None or not reconciliation_field.value_object:
+        return {}
+    section = {
+        "appraisal_type": _pick_selected_label(
+            reconciliation_field.value_object.get("AppraisalType")
+        ),
+        "appraised_market_value": _money_to_int(
+            reconciliation_field.value_object.get("AppraisedMarketValue")
+        ),
+        "indicated_value_by_cost_approach": _money_to_int(
+            reconciliation_field.value_object.get("IndicatedValueByCostApproach")
+        ),
+        "indicated_value_by_income_approach": _money_to_int(
+            reconciliation_field.value_object.get("IndicatedValueByIncomeApproach")
+        ),
+        "indicated_value_by_sales_comparison_approach": _money_to_int(
+            reconciliation_field.value_object.get("IndicatedValueBySalesComparisonApproach")
+        ),
+        "effective_date": _date_mmddyyyy(
+            reconciliation_field.value_object.get("AppraisalEffectiveDate")
+        ),
+    }
+    return {k: v for k, v in section.items() if v not in (None, "", [])}
+
+
+def _normalize_comparable(obj: dict[str, Any]) -> dict[str, Any]:
+    comparable: dict[str, Any] = {}
+    mapping = {
+        "identifier": "id",
+        "id": "id",
+        "name": "id",
+        "saleprice": "sale_price",
+        "sale_price": "sale_price",
+        "salepriceadjusted": "sale_price_adjusted",
+        "condition": "condition",
+        "quality": "quality",
+        "grosslivingarea": "gross_living_area",
+        "gross_living_area": "gross_living_area",
+        "site": "site_size",
+        "site_size": "site_size",
+        "view": "view",
+        "location": "location",
+        "datasource": "data_source",
+        "data_source": "data_source",
+        "dateofsale": "date_of_sale",
+        "date_of_sale": "date_of_sale",
+        "adjustments": "adjustments",
+        "netadjustment": "net_adjustment",
+        "grossadjustment": "gross_adjustment",
+        "rooms": "rooms",
+        "bathrooms": "bathrooms",
+        "bedrooms": "bedrooms",
+    }
+    for key, value in obj.items():
+        if value in (None, "", []):
+            continue
+        normalized_key = key.lower().replace(" ", "_")
+        mapped = mapping.get(normalized_key, key)
+        if mapped in {"sale_price", "sale_price_adjusted", "net_adjustment", "gross_adjustment"}:
+            try:
+                comparable[mapped] = int(round(float(value)))
+            except (TypeError, ValueError):
+                comparable[mapped] = value
+            else:
+                continue
+        comparable[mapped] = value
+    return comparable
+
+
+def _sales_comparison_section(doc: AnalyzedDocument) -> dict[str, Any]:
+    section_field = _field_by_path(doc, "SalesComparisonApproach")
+    if section_field is None:
+        return {}
+    comparables: list[dict[str, Any]] = []
+    value_object = getattr(section_field, "value_object", None) or {}
+    comparables_field = value_object.get("Comparables") if isinstance(value_object, dict) else None
+    if comparables_field and getattr(comparables_field, "value_list", None):
+        for item in comparables_field.value_list:
+            normalized = _normalize_field_value(item)
+            if isinstance(normalized, dict):
+                comparable_entry = _normalize_comparable(normalized)
+                if comparable_entry:
+                    comparables.append(comparable_entry)
+            elif normalized not in (None, "", []):
+                comparables.append({"value": normalized})
+    else:
+        # Fallback to numbered comparable fields when list form is unavailable.
+        for idx in range(1, 6):
+            sale_price_field = None
+            condition_field = None
+            if value_object:
+                sale_price_field = value_object.get(f"ComparableSalePrice{idx}")
+                condition_field = value_object.get(f"ComparableCondition{idx}")
+            fallback_comparable: dict[str, Any] = {}
+            sale_price = _money_to_int(sale_price_field)
+            condition = _field_text(condition_field)
+            if sale_price is None and condition is None:
+                continue
+            fallback_comparable["id"] = f"Comparable{idx}"
+            if sale_price is not None:
+                fallback_comparable["sale_price"] = sale_price
+            if condition is not None:
+                fallback_comparable["condition"] = condition
+            comparables.append(fallback_comparable)
+    indicated_value = _money_to_int(value_object.get("IndicatedValue")) if value_object else None
+    return {
+        k: v
+        for k, v in {
+            "comparables": comparables if comparables else None,
+            "indicated_value": indicated_value,
+        }.items()
+        if v not in (None, "", [])
+    }
+
+
+def _loan_section(doc: AnalyzedDocument) -> dict[str, Any]:
+    loan_field = _field_by_path(doc, "Loan") or _field_by_path(doc, "LoanInformation")
+    if loan_field is None or not loan_field.value_object:
+        return {}
+    section = {
+        "loan_number": _field_text(loan_field.value_object.get("LoanNumber")),
+        "case_number": _field_text(loan_field.value_object.get("CaseNumber")),
+        "client": _field_text(loan_field.value_object.get("ClientName")),
+        "lender": _field_text(loan_field.value_object.get("LenderName")),
+        "contact": _field_text(loan_field.value_object.get("ContactName")),
+    }
+    return {k: v for k, v in section.items() if v not in (None, "", [])}
+
+
+def _title_section(doc: AnalyzedDocument) -> dict[str, Any]:
+    title_field = _field_by_path(doc, "Title") or _field_by_path(doc, "TitleInformation")
+    if title_field is None or not title_field.value_object:
+        return {}
+    section = {
+        "current_owner": _field_text(title_field.value_object.get("CurrentOwner")),
+        "report_type": _pick_selected_label(title_field.value_object.get("ReportType")),
+        "ownership_type": _pick_selected_label(title_field.value_object.get("OwnershipType")),
+    }
+    return {k: v for k, v in section.items() if v not in (None, "", [])}
 
 
 def _date_mmddyyyy(field: DocumentField | None) -> str | None:
@@ -408,6 +620,7 @@ def extract_1004_fields(pdf_path: str, model_id: str | None = None) -> Extractio
     if not doc:
         return ExtractionResult(
             payload={"subject": {}, "contract": {}, "appraiser": {}},
+            raw_payload={},
             raw_fields={},
             missing_fields=[],
             low_confidence_fields=[],
@@ -436,6 +649,7 @@ def extract_1004_fields(pdf_path: str, model_id: str | None = None) -> Extractio
         ),
         "tax_year": _field_text(_field_by_path(doc, "Subject.TaxYear")),
         "real_estate_taxes": _money_to_int(_field_by_path(doc, "Subject.RealEstateTaxes")),
+        "public_record_owner": _field_text(_field_by_path(doc, "Subject.PublicRecordOwner")),
     }
 
     contract = {
@@ -491,7 +705,28 @@ def extract_1004_fields(pdf_path: str, model_id: str | None = None) -> Extractio
         "subject_property_status": subject_status,
         "comparable_sales_status": comparable_status,
         "property_appraised_address": appraiser_property_address,
+        "signature_present": _signature_present(
+            _field_by_path(doc, "Appraiser.AppraiserSignature")
+            or _field_by_path(doc, "Appraiser.Signature")
+            or _field_by_path(doc, "Appraiser.SignaturePresent")
+        ),
     }
+
+    photos_candidates = {
+        "front_exterior": _photo_entry(_field_by_path(doc, "Photos.FrontExterior")),
+        "rear_exterior": _photo_entry(_field_by_path(doc, "Photos.RearExterior")),
+        "street_scene": _photo_entry(_field_by_path(doc, "Photos.StreetScene")),
+        "kitchen": _photo_entry(_field_by_path(doc, "Photos.Kitchen")),
+        "bathroom": _photo_entry(_field_by_path(doc, "Photos.Bathroom")),
+        "living_room": _photo_entry(_field_by_path(doc, "Photos.LivingRoom")),
+        "other": _photo_entry(_field_by_path(doc, "Photos.Other")),
+    }
+    photos = {k: v for k, v in photos_candidates.items() if v}
+
+    reconciliation = _reconciliation_section(doc)
+    sales_comparison = _sales_comparison_section(doc)
+    loan = _loan_section(doc)
+    title = _title_section(doc)
 
     def prune(obj: dict[str, Any]) -> dict[str, Any]:
         cleaned: dict[str, Any] = {}
@@ -515,6 +750,27 @@ def extract_1004_fields(pdf_path: str, model_id: str | None = None) -> Extractio
         "subject": prune(subject),
         "contract": prune(contract),
         "appraiser": prune(appraiser),
+        "photos": prune(photos),
+        "reconciliation": prune(reconciliation),
+        "sales_comparison": prune(sales_comparison),
+        "loan": prune(loan),
+        "title": prune(title),
+    }
+
+    raw_payload = {
+        "subject": _normalize_field_value(_field_by_path(doc, "Subject")) or {},
+        "contract": _normalize_field_value(_field_by_path(doc, "Contract")) or {},
+        "appraiser": _normalize_field_value(_field_by_path(doc, "Appraiser")) or {},
+        "photos": _normalize_field_value(_field_by_path(doc, "Photos")) or {},
+        "reconciliation": _normalize_field_value(_field_by_path(doc, "Reconciliation")) or {},
+        "sales_comparison": _normalize_field_value(_field_by_path(doc, "SalesComparisonApproach"))
+        or {},
+        "loan": _normalize_field_value(_field_by_path(doc, "Loan"))
+        or _normalize_field_value(_field_by_path(doc, "LoanInformation"))
+        or {},
+        "title": _normalize_field_value(_field_by_path(doc, "Title"))
+        or _normalize_field_value(_field_by_path(doc, "TitleInformation"))
+        or {},
     }
 
     raw_fields = _flatten_document_fields(doc)
@@ -538,6 +794,7 @@ def extract_1004_fields(pdf_path: str, model_id: str | None = None) -> Extractio
 
     return ExtractionResult(
         payload=payload,
+        raw_payload=raw_payload,
         raw_fields=raw_fields,
         missing_fields=missing_fields,
         low_confidence_fields=low_confidence_fields,

@@ -26,7 +26,8 @@
           "enum": ["PerMonth", "PerYear", "None"]
         },
         "tax_year": { "type": "string" },
-        "real_estate_taxes": { "type": "integer" }
+        "real_estate_taxes": { "type": "integer" },
+        "public_record_owner": { "type": "string" }
       },
       "additionalProperties": false
     },
@@ -99,7 +100,138 @@
         "comparable_sales_status": {
           "type": "array",
           "items": { "type": "string" }
+        },
+        "signature_present": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "photos": {
+      "type": "object",
+      "properties": {
+        "front_exterior": {
+          "type": "object",
+          "properties": {
+            "caption": { "type": "string" },
+            "page_number": { "type": "integer" },
+            "present": { "type": "boolean" }
+          },
+          "additionalProperties": false
+        },
+        "rear_exterior": {
+          "type": "object",
+          "properties": {
+            "caption": { "type": "string" },
+            "page_number": { "type": "integer" }
+          },
+          "additionalProperties": false
+        },
+        "street_scene": {
+          "type": "object",
+          "properties": {
+            "caption": { "type": "string" },
+            "page_number": { "type": "integer" }
+          },
+          "additionalProperties": false
+        },
+        "kitchen": {
+          "type": "object",
+          "properties": {
+            "caption": { "type": "string" },
+            "page_number": { "type": "integer" }
+          },
+          "additionalProperties": false
+        },
+        "bathroom": {
+          "type": "object",
+          "properties": {
+            "caption": { "type": "string" },
+            "page_number": { "type": "integer" }
+          },
+          "additionalProperties": false
+        },
+        "living_room": {
+          "type": "object",
+          "properties": {
+            "caption": { "type": "string" },
+            "page_number": { "type": "integer" }
+          },
+          "additionalProperties": false
+        },
+        "other": {
+          "type": "object",
+          "properties": {
+            "caption": { "type": "string" },
+            "page_number": { "type": "integer" }
+          },
+          "additionalProperties": false
         }
+      },
+      "additionalProperties": false
+    },
+    "reconciliation": {
+      "type": "object",
+      "properties": {
+        "appraisal_type": { "type": "string" },
+        "appraised_market_value": { "type": "integer" },
+        "indicated_value_by_cost_approach": { "type": "integer" },
+        "indicated_value_by_income_approach": { "type": "integer" },
+        "indicated_value_by_sales_comparison_approach": { "type": "integer" },
+        "effective_date": {
+          "type": "string",
+          "pattern": "^(0[1-9]|1[0-2])/(0[1-9]|[12][0-9]|3[01])/[0-9]{4}$"
+        }
+      },
+      "additionalProperties": false
+    },
+    "sales_comparison": {
+      "type": "object",
+      "properties": {
+        "comparables": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "sale_price": { "type": "integer" },
+              "sale_price_adjusted": { "type": "integer" },
+              "condition": { "type": "string" },
+              "gross_living_area": { "type": "string" },
+              "site_size": { "type": "string" },
+              "view": { "type": "string" },
+              "location": { "type": "string" },
+              "data_source": { "type": "string" },
+              "date_of_sale": { "type": "string" },
+              "adjustments": { "type": "string" },
+              "net_adjustment": { "type": "integer" },
+              "gross_adjustment": { "type": "integer" },
+              "rooms": { "type": "string" },
+              "bathrooms": { "type": "string" },
+              "bedrooms": { "type": "string" }
+            },
+            "additionalProperties": false
+          }
+        },
+        "indicated_value": { "type": "integer" }
+      },
+      "additionalProperties": false
+    },
+    "loan": {
+      "type": "object",
+      "properties": {
+        "loan_number": { "type": "string" },
+        "case_number": { "type": "string" },
+        "client": { "type": "string" },
+        "lender": { "type": "string" },
+        "contact": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "title": {
+      "type": "object",
+      "properties": {
+        "current_owner": { "type": "string" },
+        "ownership_type": { "type": "string" },
+        "report_type": { "type": "string" }
       },
       "additionalProperties": false
     }

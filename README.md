@@ -170,13 +170,35 @@ and whether a fallback payload was used) so you can extend the schema as needed.
 
 ## Canonical payload coverage
 
-`schema/uad_1004_v1.json` now includes three top-level sections:
+`schema/uad_1004_v1.json` now includes several top-level sections:
 
-- **subject** – Address, parcel, tax, and HOA indicators for the property under review.
+- **subject** – Address, parcel, tax, HOA indicators, and the public-record owner for the
+  property under review.
 - **contract** – Assignment type, pricing, and offer-level metadata.
-- **appraiser** – Name, firm, contact details, appraised value, effective/signature dates,
-  property-status selections, and the company/property addresses lifted directly from
-  the Azure raw fields.
+- **appraiser** – Name, firm, contact details, appraised value, signature presence,
+  effective/signature dates, property-status selections, and the company/property addresses
+  lifted directly from the Azure raw fields.
+- **photos** – Front/rear/street/interior photo call-outs with page references so the
+  image inventory is easy to audit.
+- **reconciliation** – Appraisal type and indicated values for each approach, plus the
+  effective date captured in the reconciliation section of the 1004.
+- **sales_comparison** – Comparable sales extracted from the grid, with sale price,
+  condition, and other comparables metadata.
+- **loan** – Loan and case numbers along with lender/client details returned by the model.
+- **title** – Current owner and title/ownership selections.
+
+### Azure field mapping quick reference
+
+| Azure field path | Canonical location |
+| ---------------- | ------------------ |
+| `Appraiser.AppraiserSignature` / `Appraiser.Signature` | `appraiser.signature_present` |
+| `Subject.PublicRecordOwner` | `subject.public_record_owner` |
+| `Photos.FrontExterior`, `Photos.RearExterior`, `Photos.StreetScene`, `Photos.Kitchen`, `Photos.Bathroom`, `Photos.LivingRoom`, `Photos.Other` | `photos.front_exterior`, `photos.rear_exterior`, `photos.street_scene`, `photos.kitchen`, `photos.bathroom`, `photos.living_room`, `photos.other` |
+| `Reconciliation.AppraisalType`, `Reconciliation.AppraisedMarketValue`, `Reconciliation.IndicatedValueByCostApproach`, `Reconciliation.IndicatedValueByIncomeApproach`, `Reconciliation.IndicatedValueBySalesComparisonApproach`, `Reconciliation.AppraisalEffectiveDate` | `reconciliation.appraisal_type`, `reconciliation.appraised_market_value`, `reconciliation.indicated_value_by_cost_approach`, `reconciliation.indicated_value_by_income_approach`, `reconciliation.indicated_value_by_sales_comparison_approach`, `reconciliation.effective_date` |
+| `SalesComparisonApproach.Comparables[*]` (or `ComparableSalePrice{N}` / `ComparableCondition{N}`) | `sales_comparison.comparables[*]` (e.g., `.sale_price`, `.condition`) |
+| `SalesComparisonApproach.IndicatedValue` | `sales_comparison.indicated_value` |
+| `Loan.LoanNumber`, `Loan.CaseNumber`, `Loan.ClientName`, `Loan.LenderName`, `Loan.ContactName` | `loan.loan_number`, `loan.case_number`, `loan.client`, `loan.lender`, `loan.contact` |
+| `Title.CurrentOwner`, `Title.OwnershipType`, `Title.ReportType` | `title.current_owner`, `title.ownership_type`, `title.report_type` |
 
 The `/uad/validate` response also returns:
 

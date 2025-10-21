@@ -12,7 +12,8 @@
       "hoa_amount": 350,
       "hoa_frequency": "PerMonth",
       "tax_year": "2023",
-      "real_estate_taxes": 4200
+      "real_estate_taxes": 4200,
+      "public_record_owner": "Morgan Demo"
     },
     "contract": {
       "assignment_type": "Purchase",
@@ -34,14 +35,70 @@
       "appraised_value": 455000,
       "effective_date": "03/10/2024",
       "signature_date": "03/12/2024",
-      "subject_property_status": ["Listed", "Pending"],
-      "comparable_sales_status": ["All settled"],
+      "subject_property_status": [
+        "Listed",
+        "Pending"
+      ],
+      "comparable_sales_status": [
+        "All settled"
+      ],
       "property_appraised_address": {
         "street": "123 Demo Ave",
         "city": "Seattle",
         "state": "WA",
         "zip": "98101"
+      },
+      "signature_present": true
+    },
+    "photos": {
+      "front_exterior": {
+        "caption": "Front elevation",
+        "page_number": 3,
+        "present": true
+      },
+      "rear_exterior": {
+        "caption": "Rear elevation",
+        "page_number": 4
+      },
+      "street_scene": {
+        "caption": "Street scene",
+        "page_number": 5
       }
+    },
+    "reconciliation": {
+      "appraisal_type": "Desktop",
+      "appraised_market_value": 455000,
+      "indicated_value_by_cost_approach": 450000,
+      "indicated_value_by_income_approach": 447500,
+      "indicated_value_by_sales_comparison_approach": 452000,
+      "effective_date": "03/10/2024"
+    },
+    "sales_comparison": {
+      "comparables": [
+        {
+          "id": "Comp1",
+          "sale_price": 440000,
+          "condition": "C2",
+          "gross_living_area": "2,100",
+          "adjustments": "$5,000 concession"
+        },
+        {
+          "id": "Comp2",
+          "sale_price": 435000,
+          "condition": "C3",
+          "gross_living_area": "2,050"
+        }
+      ],
+      "indicated_value": 450000
+    },
+    "loan": {
+      "loan_number": "LN-445566",
+      "case_number": "FNMA123456",
+      "client": "Northwest Credit Union"
+    },
+    "title": {
+      "current_owner": "Alex Borrower",
+      "ownership_type": "Fee Simple"
     }
   },
   "raw_fields": {
@@ -105,6 +162,83 @@
       "content": "(206) 555-0198",
       "confidence": 0.92,
       "leaf": true
+    },
+    "Subject.PublicRecordOwner": {
+      "type": "string",
+      "value": "Morgan Demo",
+      "content": "Morgan Demo",
+      "confidence": 0.88,
+      "leaf": true
+    },
+    "Appraiser.AppraiserSignature": {
+      "type": "signature",
+      "value": true,
+      "content": "Signed",
+      "confidence": 0.94,
+      "leaf": true
+    },
+    "Photos.FrontExterior.Caption": {
+      "type": "string",
+      "value": "Front elevation",
+      "content": "Front elevation",
+      "confidence": 0.9,
+      "leaf": true
+    },
+    "Photos.FrontExterior.PageNumber": {
+      "type": "number",
+      "value": 3,
+      "content": "3",
+      "confidence": 0.9,
+      "leaf": true
+    },
+    "Reconciliation.AppraisalType": {
+      "type": "selectionGroup",
+      "value": "Desktop",
+      "content": "Desktop",
+      "confidence": 0.86,
+      "leaf": true
+    },
+    "Reconciliation.AppraisedMarketValue": {
+      "type": "number",
+      "value": 455000,
+      "content": "455000",
+      "confidence": 0.86,
+      "leaf": true
+    },
+    "SalesComparisonApproach.Comparables[0].Condition": {
+      "type": "string",
+      "value": "C2",
+      "content": "C2",
+      "confidence": 0.82,
+      "leaf": true
+    },
+    "SalesComparisonApproach.Comparables[0].SalePrice": {
+      "type": "number",
+      "value": 440000,
+      "content": "440000",
+      "confidence": 0.82,
+      "leaf": true
+    },
+    "SalesComparisonApproach.IndicatedValue": {
+      "type": "number",
+      "value": 450000,
+      "content": "450000",
+      "confidence": 0.8,
+      "leaf": true
+    },
+    "Loan.LoanNumber": {
+      "type": "string",
+      "value": "LN-445566",
+      "content": "LN-445566",
+      "confidence": 0.9,
+      "leaf": true
+    },
+    "Title.CurrentOwner": {
+      "type": "string",
+      "value": "Alex Borrower",
+      "content": "Alex Borrower",
+      "confidence": 0.87,
+      "leaf": true
     }
   },
   "missing_fields": [
@@ -121,5 +255,82 @@
     }
   ],
   "model_id": "fallback-mock",
-  "fallback_used": true
+  "fallback_used": true,
+  "raw_payload": {
+    "subject": {
+      "AssessorParcelNumber": "123456789",
+      "IsPud": true,
+      "HoaAmount": {
+        "amount": 350,
+        "currency_code": "USD"
+      },
+      "HoaPaymentInterval": "Monthly",
+      "TaxYear": 2023,
+      "RealEstateTaxes": 4200,
+      "PublicRecordOwner": "Morgan Demo"
+    },
+    "contract": {
+      "AssignmentType": "Purchase Transaction",
+      "ContractPrice": 450000,
+      "ContractDate": "2024-03-15",
+      "IsPropertySellerOwnerOfPublicRecord": "Yes"
+    },
+    "appraiser": {
+      "AppraiserName": "Casey Appraiser",
+      "CompanyName": "Northwest Valuations",
+      "AppraisedValueOfSubjectProperty": 455000,
+      "EffectiveDate": "2024-03-10",
+      "SignatureAndReportDate": "2024-03-12",
+      "AppraiserSignature": true
+    },
+    "photos": {
+      "FrontExterior": {
+        "Caption": "Front elevation",
+        "PageNumber": 3
+      },
+      "RearExterior": {
+        "Caption": "Rear elevation",
+        "PageNumber": 4
+      },
+      "StreetScene": {
+        "Caption": "Street scene",
+        "PageNumber": 5
+      }
+    },
+    "reconciliation": {
+      "AppraisalType": "Desktop",
+      "AppraisedMarketValue": 455000,
+      "IndicatedValueByCostApproach": 450000,
+      "IndicatedValueByIncomeApproach": 447500,
+      "IndicatedValueBySalesComparisonApproach": 452000,
+      "AppraisalEffectiveDate": "2024-03-10"
+    },
+    "sales_comparison": {
+      "Comparables": [
+        {
+          "Identifier": "Comp1",
+          "SalePrice": 440000,
+          "Condition": "C2",
+          "GrossLivingArea": "2,100",
+          "Adjustments": "$5,000 concession"
+        },
+        {
+          "Identifier": "Comp2",
+          "SalePrice": 435000,
+          "Condition": "C3",
+          "GrossLivingArea": "2,050"
+        }
+      ],
+      "IndicatedValue": 450000
+    },
+    "loan": {
+      "LoanNumber": "LN-445566",
+      "CaseNumber": "FNMA123456",
+      "ClientName": "Northwest Credit Union"
+    },
+    "title": {
+      "CurrentOwner": "Alex Borrower",
+      "OwnershipType": "Fee Simple"
+    }
+  }
 }
