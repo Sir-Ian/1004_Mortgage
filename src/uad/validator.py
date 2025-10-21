@@ -9,6 +9,8 @@ from typing import Any, cast
 
 from jsonschema import Draft202012Validator
 
+SIGNATURE_REQUIREMENTS_PATH = "registry/signature_requirements.json"
+
 
 @dataclass
 class Finding:
@@ -248,9 +250,61 @@ def _cross_rule_findings(
     return findings
 
 
+def _signature_requirement_findings(
+    payload: dict[str, Any], requirements: dict[str, Any]
+) -> list[Finding]:
+    signature_present = _get_field(payload, "appraiser.signature_present")
+    signature_date = _get_field(payload, "appraiser.signature_date")
+    if not signature_present or _is_missing(signature_date):
+        return []
+
+    config = requirements.get("requirements", {}) if requirements else {}
+    field_paths: list[str] = []
+
+    for path in config.get("certifications", []):
+        if isinstance(path, str):
+            field_paths.append(path)
+
+    for path in config.get("photos", []):
+        if isinstance(path, str):
+            field_paths.append(path)
+
+    sections = config.get("sections", {})
+    if isinstance(sections, dict):
+        for key in sorted(sections):
+            section_paths = sections.get(key, [])
+            if isinstance(section_paths, list):
+                for path in section_paths:
+                    if isinstance(path, str):
+                        field_paths.append(path)
+
+    for field_path in field_paths:
+        value = _get_field(payload, field_path)
+        if _is_missing(value):
+            message = (
+                "Appraiser signature requires certifications, photo inventory, "
+                "and Sections A–D to be complete before finalizing the report. "
+                f"First missing field: '{field_path}'."
+            )
+            return [
+                Finding(
+                    field=field_path,
+                    message=message,
+                    severity="error",
+                    rule="R-01",
+                )
+            ]
+    return []
+
+
 def validate(payload: dict[str, Any], schema_path: str, registry_path: str) -> dict[str, Any]:
     schema = _load_json(schema_path)
     registry = _load_json(registry_path)
+    signature_requirements: dict[str, Any] = {}
+    try:
+        signature_requirements = _load_json(SIGNATURE_REQUIREMENTS_PATH)
+    except FileNotFoundError:
+        signature_requirements = {}
     findings: list[Finding] = []
 
     findings.extend(_schema_findings(payload, schema))
@@ -259,6 +313,7 @@ def validate(payload: dict[str, Any], schema_path: str, registry_path: str) -> d
 
     findings.extend(_field_requirements(payload, registry, context))
     findings.extend(_cross_rule_findings(payload, registry, context))
+    findings.extend(_signature_requirement_findings(payload, signature_requirements))
 
     status = "fail" if any(f.severity == "error" for f in findings) else "pass"
     return {
