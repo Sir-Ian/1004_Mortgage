@@ -40,7 +40,9 @@ def load_env_file(path: Path | None = None, *, override: bool = False) -> None:
         if not override and key in os.environ:
             continue
         raw_value = value.strip()
-        quoted = len(raw_value) >= 2 and raw_value[0] == raw_value[-1] and raw_value[0] in _QUOTE_CHARS
+        quoted = (
+            len(raw_value) >= 2 and raw_value[0] == raw_value[-1] and raw_value[0] in _QUOTE_CHARS
+        )
         cleaned = _strip_quotes(raw_value)
         # Support inline comments when the value is not quoted.
         if not quoted and " #" in cleaned:
