@@ -110,7 +110,11 @@ def test_extract_surfaces_extended_sections(tmp_path, monkeypatch):
     result = extract_1004_fields(str(pdf_path))
     assert result.payload["subject"]["public_record_owner"] == "Morgan Demo"
     assert result.payload["appraiser"]["signature_present"] is True
-    assert result.payload["photos"]["front_exterior"]["page_number"] == 3
+    photos = result.payload["photos"]
+    assert photos["front_exterior"]["page_number"] == 3
+    assert photos["front_exterior"]["reference"] == "https://example.com/photos/front-exterior.jpg"
+    assert photos["rear_exterior"]["present"] is True
+    assert photos["kitchen"]["present"] is False
     assert result.payload["reconciliation"]["appraisal_type"] == "Desktop"
     comparables = result.payload["sales_comparison"]["comparables"]
     assert comparables[0]["condition"] == "C2"
