@@ -1,0 +1,57 @@
+{
+  "meta": {
+    "form": "1004",
+    "version": "v1",
+    "rule": "R-01"
+  },
+  "requirements": {
+    "certifications": [
+      "certifications.appraiser.name",
+      "certifications.appraiser.license_number",
+      "certifications.appraiser.state",
+      "certifications.appraiser.expiration_date",
+      "certifications.supervisory_appraiser.name",
+      "certifications.supervisory_appraiser.license_number",
+      "certifications.supervisory_appraiser.state",
+      "certifications.supervisory_appraiser.expiration_date"
+    ],
+    "photos": [
+      "photos.front_exterior.caption",
+      "photos.front_exterior.page_number",
+      "photos.rear_exterior.caption",
+      "photos.rear_exterior.page_number",
+      "photos.street_scene.caption",
+      "photos.street_scene.page_number",
+      "photos.kitchen.caption",
+      "photos.kitchen.page_number",
+      "photos.bathroom.caption",
+      "photos.bathroom.page_number",
+      "photos.living_room.caption",
+      "photos.living_room.page_number",
+      "photos.other.caption",
+      "photos.other.page_number"
+    ],
+    "sections": {
+      "section_a": [
+        "sections.section_a.title",
+        "sections.section_a.page_number",
+        "sections.section_a.comments"
+      ],
+      "section_b": [
+        "sections.section_b.title",
+        "sections.section_b.page_number",
+        "sections.section_b.comments"
+      ],
+      "section_c": [
+        "sections.section_c.title",
+        "sections.section_c.page_number",
+        "sections.section_c.comments"
+      ],
+      "section_d": [
+        "sections.section_d.title",
+        "sections.section_d.page_number",
+        "sections.section_d.comments"
+      ]
+    }
+  }
+}

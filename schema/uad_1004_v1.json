@@ -105,6 +105,38 @@
       },
       "additionalProperties": false
     },
+    "certifications": {
+      "type": "object",
+      "properties": {
+        "appraiser": {
+          "type": "object",
+          "properties": {
+            "name": { "type": "string" },
+            "license_number": { "type": "string" },
+            "state": { "type": "string", "pattern": "^[A-Z]{2}$" },
+            "expiration_date": {
+              "type": "string",
+              "pattern": "^(0[1-9]|1[0-2])/(0[1-9]|[12][0-9]|3[01])/[0-9]{4}$"
+            }
+          },
+          "additionalProperties": false
+        },
+        "supervisory_appraiser": {
+          "type": "object",
+          "properties": {
+            "name": { "type": "string" },
+            "license_number": { "type": "string" },
+            "state": { "type": "string", "pattern": "^[A-Z]{2}$" },
+            "expiration_date": {
+              "type": "string",
+              "pattern": "^(0[1-9]|1[0-2])/(0[1-9]|[12][0-9]|3[01])/[0-9]{4}$"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
     "photos": {
       "type": "object",
       "properties": {
@@ -162,6 +194,48 @@
           "properties": {
             "caption": { "type": "string" },
             "page_number": { "type": "integer" }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "sections": {
+      "type": "object",
+      "properties": {
+        "section_a": {
+          "type": "object",
+          "properties": {
+            "title": { "type": "string" },
+            "page_number": { "type": "integer" },
+            "comments": { "type": "string" }
+          },
+          "additionalProperties": false
+        },
+        "section_b": {
+          "type": "object",
+          "properties": {
+            "title": { "type": "string" },
+            "page_number": { "type": "integer" },
+            "comments": { "type": "string" }
+          },
+          "additionalProperties": false
+        },
+        "section_c": {
+          "type": "object",
+          "properties": {
+            "title": { "type": "string" },
+            "page_number": { "type": "integer" },
+            "comments": { "type": "string" }
+          },
+          "additionalProperties": false
+        },
+        "section_d": {
+          "type": "object",
+          "properties": {
+            "title": { "type": "string" },
+            "page_number": { "type": "integer" },
+            "comments": { "type": "string" }
           },
           "additionalProperties": false
         }
