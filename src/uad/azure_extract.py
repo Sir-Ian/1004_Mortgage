@@ -650,6 +650,7 @@ def extract_1004_fields(pdf_path: str, model_id: str | None = None) -> Extractio
         "tax_year": _field_text(_field_by_path(doc, "Subject.TaxYear")),
         "real_estate_taxes": _money_to_int(_field_by_path(doc, "Subject.RealEstateTaxes")),
         "public_record_owner": _field_text(_field_by_path(doc, "Subject.PublicRecordOwner")),
+        "borrower_name": _field_text(_field_by_path(doc, "Subject.BorrowerName")),
     }
 
     contract = {

@@ -172,8 +172,8 @@ and whether a fallback payload was used) so you can extend the schema as needed.
 
 `schema/uad_1004_v1.json` now includes several top-level sections:
 
-- **subject** – Address, parcel, tax, HOA indicators, and the public-record owner for the
-  property under review.
+- **subject** – Address, parcel, tax, HOA indicators, the borrower of record, and the
+  public-record owner for the property under review.
 - **contract** – Assignment type, pricing, and offer-level metadata.
 - **appraiser** – Name, firm, contact details, appraised value, signature presence,
   effective/signature dates, property-status selections, and the company/property addresses
@@ -192,6 +192,7 @@ and whether a fallback payload was used) so you can extend the schema as needed.
 | Azure field path | Canonical location |
 | ---------------- | ------------------ |
 | `Appraiser.AppraiserSignature` / `Appraiser.Signature` | `appraiser.signature_present` |
+| `Subject.BorrowerName` | `subject.borrower_name` |
 | `Subject.PublicRecordOwner` | `subject.public_record_owner` |
 | `Photos.FrontExterior`, `Photos.RearExterior`, `Photos.StreetScene`, `Photos.Kitchen`, `Photos.Bathroom`, `Photos.LivingRoom`, `Photos.Other` | `photos.front_exterior`, `photos.rear_exterior`, `photos.street_scene`, `photos.kitchen`, `photos.bathroom`, `photos.living_room`, `photos.other` |
 | `Reconciliation.AppraisalType`, `Reconciliation.AppraisedMarketValue`, `Reconciliation.IndicatedValueByCostApproach`, `Reconciliation.IndicatedValueByIncomeApproach`, `Reconciliation.IndicatedValueBySalesComparisonApproach`, `Reconciliation.AppraisalEffectiveDate` | `reconciliation.appraisal_type`, `reconciliation.appraised_market_value`, `reconciliation.indicated_value_by_cost_approach`, `reconciliation.indicated_value_by_income_approach`, `reconciliation.indicated_value_by_sales_comparison_approach`, `reconciliation.effective_date` |

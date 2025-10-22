@@ -13,7 +13,8 @@
       "hoa_frequency": "PerMonth",
       "tax_year": "2023",
       "real_estate_taxes": 4200,
-      "public_record_owner": "Morgan Demo"
+      "public_record_owner": "Morgan Demo",
+      "borrower_name": "Alex Borrower"
     },
     "contract": {
       "assignment_type": "Purchase",
@@ -382,7 +383,8 @@
       "HoaPaymentInterval": "Monthly",
       "TaxYear": 2023,
       "RealEstateTaxes": 4200,
-      "PublicRecordOwner": "Morgan Demo"
+      "PublicRecordOwner": "Morgan Demo",
+      "BorrowerName": "Alex Borrower"
     },
     "contract": {
       "AssignmentType": "Purchase Transaction",
