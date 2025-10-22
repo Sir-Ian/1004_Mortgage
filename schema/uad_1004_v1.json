@@ -291,6 +291,7 @@
               "sale_price": { "type": "integer" },
               "sale_price_adjusted": { "type": "integer" },
               "condition": { "type": "string" },
+              "condition_rank": { "type": "integer", "minimum": 1, "maximum": 6 },
               "gross_living_area": { "type": "string" },
               "site_size": { "type": "string" },
               "view": { "type": "string" },
@@ -307,7 +308,15 @@
             "additionalProperties": false
           }
         },
-        "indicated_value": { "type": "integer" }
+        "indicated_value": { "type": "integer" },
+        "subject": {
+          "type": "object",
+          "properties": {
+            "condition": { "type": "string" },
+            "condition_rank": { "type": "integer", "minimum": 1, "maximum": 6 }
+          },
+          "additionalProperties": false
+        }
       },
       "additionalProperties": false
     },

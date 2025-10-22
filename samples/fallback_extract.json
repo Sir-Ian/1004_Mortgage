@@ -92,11 +92,16 @@
       "effective_date": "03/10/2024"
     },
     "sales_comparison": {
+      "subject": {
+        "condition": "C3",
+        "condition_rank": 3
+      },
       "comparables": [
         {
           "id": "Comp1",
           "sale_price": 440000,
           "condition": "C2",
+          "condition_rank": 2,
           "gross_living_area": "2,100",
           "adjustments": "$5,000 concession"
         },
@@ -104,6 +109,7 @@
           "id": "Comp2",
           "sale_price": 435000,
           "condition": "C3",
+          "condition_rank": 3,
           "gross_living_area": "2,050"
         }
       ],
@@ -441,6 +447,9 @@
       "AppraisalEffectiveDate": "2024-03-10"
     },
     "sales_comparison": {
+      "Subject": {
+        "Condition": "C3"
+      },
       "Comparables": [
         {
           "Identifier": "Comp1",

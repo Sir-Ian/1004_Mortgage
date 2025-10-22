@@ -10,6 +10,7 @@ from typing import Any, cast
 from jsonschema import Draft202012Validator
 
 from . import RULESET_VERSION
+from .conditions import condition_rank, condition_stats
 
 SIGNATURE_REQUIREMENTS_PATH = "registry/signature_requirements.json"
 PHOTO_REQUIREMENTS_PATH = "registry/photo_requirements.json"
@@ -251,6 +252,9 @@ def _cross_rule_findings(
         if rule_type == "reconciliation_appraisal_type":
             findings.extend(_reconciliation_appraisal_type_findings(rule, payload))
             continue
+        if rule_type == "comparable_condition_consistency":
+            findings.extend(_comparable_condition_findings(rule, payload))
+            continue
         expr = rule.get("expr")
         if not expr:
             continue
@@ -442,6 +446,63 @@ def _reconciliation_appraisal_type_findings(
             rule=rule_id,
         )
     ]
+
+
+def _comparable_condition_findings(rule: dict[str, Any], payload: dict[str, Any]) -> list[Finding]:
+    sales_comparison = payload.get("sales_comparison")
+    if not isinstance(sales_comparison, dict):
+        return []
+    subject_rank = condition_rank(sales_comparison.get("subject"))
+    if subject_rank is None:
+        return []
+    comparables = sales_comparison.get("comparables")
+    if not isinstance(comparables, list):
+        return []
+
+    comparable_with_rank: list[tuple[int, dict[str, Any], int]] = []
+    for index, comparable in enumerate(comparables):
+        if not isinstance(comparable, dict):
+            continue
+        rank = condition_rank(comparable)
+        if rank is None:
+            continue
+        comparable_with_rank.append((index, comparable, rank))
+
+    if not comparable_with_rank:
+        return []
+
+    mean, std_dev = condition_stats(rank for _, _, rank in comparable_with_rank)
+    tolerance = 2 * std_dev
+    rule_id = rule.get("id", "R-13")
+    severity = rule.get("severity", "error")
+    desc = rule.get(
+        "desc",
+        "Comparable condition ratings must be within two standard deviations of the subject.",
+    )
+
+    findings: list[Finding] = []
+    for index, comparable, rank in comparable_with_rank:
+        delta = abs(rank - subject_rank)
+        if delta > tolerance + 1e-9:
+            identifier = comparable.get("id")
+            if isinstance(identifier, str) and identifier.strip():
+                label = identifier.strip()
+            else:
+                label = f"#{index + 1}"
+            message = (
+                f"{desc} Subject rank: {subject_rank}; Comparable '{label}' rank: {rank}; "
+                f"Δ={delta:.2f} exceeds tolerance {tolerance:.2f} "
+                f"(mean={mean:.2f}, σ={std_dev:.2f})."
+            )
+            findings.append(
+                Finding(
+                    field=f"sales_comparison.comparables[{index}].condition",
+                    message=message,
+                    severity=severity,
+                    rule=rule_id,
+                )
+            )
+    return findings
 
 
 def _signature_requirement_findings(

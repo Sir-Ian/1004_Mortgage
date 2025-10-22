@@ -119,8 +119,12 @@ def test_extract_surfaces_extended_sections(tmp_path, monkeypatch):
     assert photos["rear_exterior"]["present"] is True
     assert photos["kitchen"]["present"] is False
     assert result.payload["reconciliation"]["appraisal_type"] == "Desktop"
-    comparables = result.payload["sales_comparison"]["comparables"]
+    sales_comparison = result.payload["sales_comparison"]
+    assert sales_comparison["subject"]["condition"] == "C3"
+    assert sales_comparison["subject"]["condition_rank"] == 3
+    comparables = sales_comparison["comparables"]
     assert comparables[0]["condition"] == "C2"
+    assert comparables[0]["condition_rank"] == 2
     assert result.payload["loan"]["loan_number"] == "LN-445566"
     assert result.payload["title"]["current_owner"] == "Alex Borrower"
     assert result.raw_payload["sales_comparison"]["Comparables"][0]["Identifier"] == "Comp1"

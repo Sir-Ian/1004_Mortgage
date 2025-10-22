@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.5.0 - 2024-05-12
+- Exposed subject and comparable condition ranks in the sales comparison payload and schema.
+- Added validation rule R-13 to flag comparable condition outliers beyond two standard deviations of the subject.
+
 ## 1.4.0 - 2024-05-11
 - Normalized reconciliation appraisal types to canonical values during extraction.
 - Added manual review escalation metadata to the payload schema and documentation.
