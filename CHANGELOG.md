@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.3.0 - 2024-05-10
+- Added external source alignment schema support for loan documents, title, and public records.
+- Introduced rule R-06 to surface cross-source mismatches with source attribution in findings.
+- Documented automated integration tests validating aligned versus misaligned external data payloads.
+
 ## 1.2.0 - 2024-05-09
 - Persisted borrower names from Azure extraction alongside the public-record owner in the
   canonical subject payload.
