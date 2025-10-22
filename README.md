@@ -182,6 +182,8 @@ and whether a fallback payload was used) so you can extend the schema as needed.
   presence booleans, and document references so the image inventory is easy to audit.
 - **reconciliation** – Appraisal type and indicated values for each approach, plus the
   effective date captured in the reconciliation section of the 1004.
+- **review** – Manual review metadata including escalation markers and acknowledgements
+  from downstream reviewers.
 - **sales_comparison** – Comparable sales extracted from the grid, with sale price,
   condition, and other comparables metadata.
 - **loan** – Loan and case numbers along with lender/client details returned by the model.
