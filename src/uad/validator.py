@@ -15,20 +15,32 @@ SIGNATURE_REQUIREMENTS_PATH = "registry/signature_requirements.json"
 PHOTO_REQUIREMENTS_PATH = "registry/photo_requirements.json"
 
 
+SOURCE_LABELS: dict[str, str] = {
+    "uad": "UAD",
+    "loan_docs": "Loan docs",
+    "title": "Title",
+    "public_records": "Public records",
+}
+
+
 @dataclass
 class Finding:
     field: str
     message: str
     severity: str
     rule: str
+    sources: dict[str, Any] | None = None
 
     def as_dict(self) -> dict[str, Any]:
-        return {
+        payload: dict[str, Any] = {
             "field": self.field,
             "message": self.message,
             "severity": self.severity,
             "rule": self.rule,
         }
+        if self.sources is not None:
+            payload["sources"] = self.sources
+        return payload
 
 
 class AttrDict(dict):
@@ -268,6 +280,92 @@ def _cross_rule_findings(
     return findings
 
 
+def _extract_alignment_sources(payload: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    sources_raw = payload.get("sources")
+    if not isinstance(sources_raw, dict):
+        return {}
+    sources: dict[str, dict[str, Any]] = {}
+    for name in ("loan_docs", "title", "public_records"):
+        value = sources_raw.get(name)
+        if isinstance(value, dict):
+            sources[name] = value
+    return sources
+
+
+def _normalize_for_compare(value: Any) -> Any:
+    if isinstance(value, str):
+        return value.strip().lower()
+    if isinstance(value, int | float | bool):
+        return value
+    if value is None:
+        return None
+    return str(value)
+
+
+def _format_alignment_message(field: str, values: dict[str, Any]) -> str:
+    parts: list[str] = []
+    for name, value in values.items():
+        label = SOURCE_LABELS.get(name, name.replace("_", " ").title())
+        display = "—" if _is_missing(value) else str(value)
+        parts.append(f"{label}: {display}")
+    details = "; ".join(parts)
+    return f"Field '{field}' differs across sources. {details}."
+
+
+def _alignment_fields(registry: dict[str, Any]) -> list[str]:
+    alignment = registry.get("source_alignment")
+    if isinstance(alignment, dict):
+        fields = alignment.get("required_fields", [])
+        return [str(field) for field in fields if isinstance(field, str)]
+    return [
+        str(field.get("code"))
+        for field in registry.get("fields", [])
+        if isinstance(field, dict) and field.get("code") and field.get("uad") == "Requirement"
+    ]
+
+
+def _source_alignment_findings(payload: dict[str, Any], registry: dict[str, Any]) -> list[Finding]:
+    sources = _extract_alignment_sources(payload)
+    if not sources:
+        return []
+
+    findings: list[Finding] = []
+    for field in _alignment_fields(registry):
+        values: dict[str, Any] = {"uad": _get_field(payload, field)}
+        for name, source_payload in sources.items():
+            values[name] = _get_field(source_payload, field)
+
+        non_missing = {
+            name: _normalize_for_compare(value)
+            for name, value in values.items()
+            if not _is_missing(value)
+        }
+        if len(non_missing) <= 1:
+            continue
+        unique_values = {val for val in non_missing.values()}
+        if len(unique_values) <= 1:
+            continue
+
+        sources_detail = {
+            name: {
+                "value": None if _is_missing(value) else value,
+                "missing": _is_missing(value),
+            }
+            for name, value in values.items()
+        }
+        message = _format_alignment_message(field, values)
+        findings.append(
+            Finding(
+                field=field,
+                message=message,
+                severity="error",
+                rule="R-06",
+                sources=sources_detail,
+            )
+        )
+    return findings
+
+
 def _refinance_owner_match_findings(rule: dict[str, Any], payload: dict[str, Any]) -> list[Finding]:
     assignment_type = _get_field(payload, "contract.assignment_type")
     if assignment_type != "Refinance":
@@ -426,6 +524,7 @@ def validate(payload: dict[str, Any], schema_path: str, registry_path: str) -> d
 
     findings.extend(_field_requirements(payload, registry, context))
     findings.extend(_cross_rule_findings(payload, registry, context))
+    findings.extend(_source_alignment_findings(payload, registry))
     findings.extend(_signature_requirement_findings(payload, signature_requirements))
     findings.extend(_photo_inventory_findings(payload, photo_requirements))
 

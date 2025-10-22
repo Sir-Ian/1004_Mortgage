@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from copy import deepcopy
 
+from src.uad import RULESET_VERSION
 from src.uad.validator import validate
 
 SCHEMA = "schema/uad_1004_v1.json"
@@ -126,7 +127,7 @@ def test_signature_rule_passes_when_fields_present() -> None:
     assert all(f["rule"] != "R-01" for f in result["findings"])
     assert all(f["rule"] != "R-02" for f in result["findings"])
     assert result["status"] == "pass"
-    assert result["ruleset_version"] == "1.2.0"
+    assert result["ruleset_version"] == RULESET_VERSION
 
 
 def test_signature_rule_skips_when_signature_absent() -> None:

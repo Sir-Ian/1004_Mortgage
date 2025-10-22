@@ -322,8 +322,71 @@
         "report_type": { "type": "string" }
       },
       "additionalProperties": false
+    },
+    "sources": {
+      "type": "object",
+      "properties": {
+        "loan_docs": { "$ref": "#/$defs/sourcePayload" },
+        "title": { "$ref": "#/$defs/sourcePayload" },
+        "public_records": { "$ref": "#/$defs/sourcePayload" }
+      },
+      "additionalProperties": false
     }
   },
   "required": ["subject", "contract"],
-  "additionalProperties": false
+  "additionalProperties": false,
+  "$defs": {
+    "sourceAddress": {
+      "type": "object",
+      "properties": {
+        "street": { "type": "string" },
+        "city": { "type": "string" },
+        "state": { "type": "string", "pattern": "^[A-Z]{2}$" },
+        "zip": { "type": "string", "pattern": "^[0-9]{5}(-?[0-9]{4})?$" }
+      },
+      "additionalProperties": false
+    },
+    "sourceSubject": {
+      "type": "object",
+      "properties": {
+        "address": { "$ref": "#/$defs/sourceAddress" },
+        "county": { "type": "string" },
+        "parcel_number": { "type": "string" },
+        "pud_indicator": { "type": "boolean" },
+        "hoa_amount": { "type": "integer" },
+        "hoa_frequency": {
+          "type": "string",
+          "enum": ["PerMonth", "PerYear", "None"]
+        },
+        "tax_year": { "type": "string" },
+        "real_estate_taxes": { "type": "integer" },
+        "public_record_owner": { "type": "string" },
+        "borrower_name": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "sourceContract": {
+      "type": "object",
+      "properties": {
+        "assignment_type": {
+          "type": "string",
+          "enum": ["Purchase", "Refinance", "Other"]
+        },
+        "contract_price": { "type": "integer" },
+        "contract_date": {
+          "type": "string",
+          "pattern": "^(0[1-9]|1[0-2])/(0[1-9]|[12][0-9]|3[01])/[0-9]{4}$"
+        }
+      },
+      "additionalProperties": false
+    },
+    "sourcePayload": {
+      "type": "object",
+      "properties": {
+        "subject": { "$ref": "#/$defs/sourceSubject" },
+        "contract": { "$ref": "#/$defs/sourceContract" }
+      },
+      "additionalProperties": false
+    }
+  }
 }

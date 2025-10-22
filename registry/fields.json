@@ -24,5 +24,19 @@
       "desc":"Refinance borrower and public-record owner last names must align.",
       "remediation":"If they differ, confirm the borrower of record or update the title/public-record owner fields.",
       "severity":"condition" }
-  ]
+  ],
+  "source_alignment": {
+    "required_fields": [
+      "subject.address.street",
+      "subject.address.city",
+      "subject.address.state",
+      "subject.address.zip",
+      "subject.parcel_number",
+      "subject.borrower_name",
+      "subject.public_record_owner",
+      "contract.assignment_type",
+      "contract.contract_price",
+      "contract.contract_date"
+    ]
+  }
 }
