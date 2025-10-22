@@ -20,6 +20,8 @@ def test_extract_uses_fallback_when_azure_fails(tmp_path, monkeypatch, fallback_
                     "zip": "78701",
                 },
                 "pud_indicator": False,
+                "borrower_name": "Jordan Borrower",
+                "public_record_owner": "Jordan Borrower",
             },
             "contract": {"assignment_type": "Purchase"},
             "appraiser": {
@@ -109,6 +111,7 @@ def test_extract_surfaces_extended_sections(tmp_path, monkeypatch):
 
     result = extract_1004_fields(str(pdf_path))
     assert result.payload["subject"]["public_record_owner"] == "Morgan Demo"
+    assert result.payload["subject"]["borrower_name"] == "Alex Borrower"
     assert result.payload["appraiser"]["signature_present"] is True
     photos = result.payload["photos"]
     assert photos["front_exterior"]["page_number"] == 3

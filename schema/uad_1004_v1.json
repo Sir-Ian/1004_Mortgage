@@ -27,7 +27,8 @@
         },
         "tax_year": { "type": "string" },
         "real_estate_taxes": { "type": "integer" },
-        "public_record_owner": { "type": "string" }
+        "public_record_owner": { "type": "string" },
+        "borrower_name": { "type": "string" }
       },
       "additionalProperties": false
     },

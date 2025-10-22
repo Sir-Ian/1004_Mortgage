@@ -67,6 +67,17 @@ def _normalize_expr(expr: str) -> str:
     return normalized
 
 
+def _normalize_last_name(value: Any) -> str | None:
+    if not isinstance(value, str):
+        return None
+    tokens = [
+        token.strip(" ,.").upper() for token in re.split(r"[\s\-&]+", value) if token.strip(" ,.")
+    ]
+    if not tokens:
+        return None
+    return tokens[-1]
+
+
 def _evaluate_node(node: ast.AST, context: dict[str, Any]) -> Any:
     if isinstance(node, ast.Expression):
         return _evaluate_node(node.body, context)
@@ -221,6 +232,10 @@ def _cross_rule_findings(
 ) -> list[Finding]:
     findings: list[Finding] = []
     for rule in registry.get("cross_rules", []):
+        rule_type = rule.get("type")
+        if rule_type == "refinance_owner_match":
+            findings.extend(_refinance_owner_match_findings(rule, payload))
+            continue
         expr = rule.get("expr")
         if not expr:
             continue
@@ -251,6 +266,46 @@ def _cross_rule_findings(
                     )
                 )
     return findings
+
+
+def _refinance_owner_match_findings(rule: dict[str, Any], payload: dict[str, Any]) -> list[Finding]:
+    assignment_type = _get_field(payload, "contract.assignment_type")
+    if assignment_type != "Refinance":
+        return []
+    borrower_name = _get_field(payload, "subject.borrower_name") or _get_field(
+        payload, "title.current_owner"
+    )
+    owner_name = _get_field(payload, "subject.public_record_owner")
+    borrower_last = _normalize_last_name(borrower_name)
+    owner_last = _normalize_last_name(owner_name)
+    if not borrower_last or not owner_last:
+        return []
+    if borrower_last == owner_last:
+        return []
+    severity = rule.get("severity", "condition")
+    rule_id = rule.get("id", "cross_rule")
+    desc = rule.get(
+        "desc",
+        "Borrower and public-record owner last names must match for refinance assignments.",
+    )
+    remediation = rule.get(
+        "remediation",
+        "Confirm title/borrower data align or document the reason for the discrepancy.",
+    )
+    borrower_display = borrower_name or "—"
+    owner_display = owner_name or "—"
+    message = (
+        f"{desc} Borrower: {borrower_display}; Public record owner: {owner_display}. "
+        f"{remediation}"
+    )
+    return [
+        Finding(
+            field="subject.borrower_name",
+            message=message,
+            severity=severity,
+            rule=rule_id,
+        )
+    ]
 
 
 def _signature_requirement_findings(

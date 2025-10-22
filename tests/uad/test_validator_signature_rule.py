@@ -126,7 +126,7 @@ def test_signature_rule_passes_when_fields_present() -> None:
     assert all(f["rule"] != "R-01" for f in result["findings"])
     assert all(f["rule"] != "R-02" for f in result["findings"])
     assert result["status"] == "pass"
-    assert result["ruleset_version"] == "1.1.0"
+    assert result["ruleset_version"] == "1.2.0"
 
 
 def test_signature_rule_skips_when_signature_absent() -> None:
