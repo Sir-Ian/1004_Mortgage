@@ -2,36 +2,11 @@ from __future__ import annotations
 
 from src.uad.validator import validate
 
-SCHEMA = "schema/uad_1004_v1.json"
-REGISTRY = "registry/fields.json"
+from .builders import REGISTRY_PATH, SCHEMA_PATH, base_payload
 
 
-def _base_payload() -> dict[str, object]:
-    return {
-        "subject": {
-            "address": {
-                "street": "123 Main St",
-                "city": "Denver",
-                "state": "CO",
-                "zip": "80202",
-            },
-            "parcel_number": "1234567890",
-            "pud_indicator": False,
-            "tax_year": "2024",
-            "real_estate_taxes": 2400,
-            "borrower_name": "Alex Morgan",
-            "public_record_owner": "Alex Morgan",
-        },
-        "contract": {
-            "assignment_type": "Purchase",
-            "contract_price": 525000,
-            "contract_date": "04/01/2024",
-        },
-    }
-
-
-def test_alignment_passes_when_sources_match():
-    payload = _base_payload()
+def test_alignment_passes_when_sources_match() -> None:
+    payload = base_payload()
     sources = {
         "subject": {
             "address": payload["subject"]["address"].copy(),
@@ -47,14 +22,14 @@ def test_alignment_passes_when_sources_match():
         "public_records": sources,
     }
 
-    result = validate(payload, SCHEMA, REGISTRY)
+    result = validate(payload, SCHEMA_PATH, REGISTRY_PATH)
     findings = [f for f in result["findings"] if f["rule"] == "R-06"]
     assert not findings
     assert result["status"] == "pass"
 
 
-def test_alignment_flags_each_field_mismatch():
-    payload = _base_payload()
+def test_alignment_flags_each_field_mismatch() -> None:
+    payload = base_payload()
     payload["sources"] = {
         "loan_docs": {
             "subject": {
@@ -100,7 +75,7 @@ def test_alignment_flags_each_field_mismatch():
         },
     }
 
-    result = validate(payload, SCHEMA, REGISTRY)
+    result = validate(payload, SCHEMA_PATH, REGISTRY_PATH)
     findings = [f for f in result["findings"] if f["rule"] == "R-06"]
     assert {f["field"] for f in findings} == {
         "subject.address.street",
