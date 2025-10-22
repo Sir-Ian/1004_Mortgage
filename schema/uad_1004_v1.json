@@ -271,6 +271,14 @@
       },
       "additionalProperties": false
     },
+    "review": {
+      "type": "object",
+      "properties": {
+        "escalated": { "type": "boolean" },
+        "acknowledged": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
     "sales_comparison": {
       "type": "object",
       "properties": {

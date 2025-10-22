@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.4.0 - 2024-05-11
+- Normalized reconciliation appraisal types to canonical values during extraction.
+- Added manual review escalation metadata to the payload schema and documentation.
+- Introduced rule R-12 to flag non-"As is" appraisals unless escalated or acknowledged.
+
 ## 1.3.0 - 2024-05-10
 - Added external source alignment schema support for loan documents, title, and public records.
 - Introduced rule R-06 to surface cross-source mismatches with source attribution in findings.

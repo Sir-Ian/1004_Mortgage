@@ -248,6 +248,9 @@ def _cross_rule_findings(
         if rule_type == "refinance_owner_match":
             findings.extend(_refinance_owner_match_findings(rule, payload))
             continue
+        if rule_type == "reconciliation_appraisal_type":
+            findings.extend(_reconciliation_appraisal_type_findings(rule, payload))
+            continue
         expr = rule.get("expr")
         if not expr:
             continue
@@ -399,6 +402,41 @@ def _refinance_owner_match_findings(rule: dict[str, Any], payload: dict[str, Any
     return [
         Finding(
             field="subject.borrower_name",
+            message=message,
+            severity=severity,
+            rule=rule_id,
+        )
+    ]
+
+
+def _reconciliation_appraisal_type_findings(
+    rule: dict[str, Any], payload: dict[str, Any]
+) -> list[Finding]:
+    appraisal_type_raw = _get_field(payload, "reconciliation.appraisal_type")
+    if not isinstance(appraisal_type_raw, str):
+        return []
+    appraisal_type = appraisal_type_raw.strip()
+    if not appraisal_type:
+        return []
+    lowered = appraisal_type.lower()
+    if lowered.startswith("as is") or lowered in {"as-is", "asis", "as is"}:
+        return []
+
+    escalated = bool(_get_field(payload, "review.escalated"))
+    acknowledged = bool(_get_field(payload, "review.acknowledged"))
+    if escalated or acknowledged:
+        return []
+
+    severity = rule.get("severity", "condition")
+    rule_id = rule.get("id", "R-12")
+    desc = rule.get(
+        "desc",
+        "Reports not marked 'As is' must be escalated or acknowledged by a reviewer.",
+    )
+    message = f"{desc} Current appraisal type: {appraisal_type}."
+    return [
+        Finding(
+            field="reconciliation.appraisal_type",
             message=message,
             severity=severity,
             rule=rule_id,

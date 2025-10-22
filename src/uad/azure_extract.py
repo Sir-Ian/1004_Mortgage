@@ -25,6 +25,26 @@ DEFAULT_FALLBACK = Path(__file__).resolve().parents[2] / "samples" / "fallback_e
 NONE_SELECTED_MESSAGE = "Azure Document Intelligence returned '(None Selected)' for this field."
 
 
+def _normalize_appraisal_type(value: str | None) -> str | None:
+    if value is None:
+        return None
+    normalized = value.strip()
+    if not normalized:
+        return None
+    lowered = normalized.lower()
+    direct_map = {
+        "as is": "As is",
+        "as-is": "As is",
+        "asis": "As is",
+        "as is condition": "As is",
+    }
+    if lowered in direct_map:
+        return direct_map[lowered]
+    if lowered.startswith("subject to"):
+        return "Subject to"
+    return normalized
+
+
 @dataclass
 class ExtractionResult:
     payload: dict[str, Any]
@@ -297,10 +317,10 @@ def _reconciliation_section(doc: AnalyzedDocument) -> dict[str, Any]:
     reconciliation_field = _field_by_path(doc, "Reconciliation")
     if reconciliation_field is None or not reconciliation_field.value_object:
         return {}
+    appraisal_type_field = reconciliation_field.value_object.get("AppraisalType")
+    appraisal_type = _pick_selected_label(appraisal_type_field)
     section = {
-        "appraisal_type": _pick_selected_label(
-            reconciliation_field.value_object.get("AppraisalType")
-        ),
+        "appraisal_type": _normalize_appraisal_type(appraisal_type),
         "appraised_market_value": _money_to_int(
             reconciliation_field.value_object.get("AppraisedMarketValue")
         ),
