@@ -19,6 +19,8 @@ from azure.ai.documentintelligence.models import (
 )
 from azure.core.credentials import AzureKeyCredential
 
+from .conditions import CONDITION_RANKS, condition_rank, normalize_condition_code
+
 logger = logging.getLogger(__name__)
 
 DEFAULT_FALLBACK = Path(__file__).resolve().parents[2] / "samples" / "fallback_extract.json"
@@ -226,6 +228,27 @@ def _money_to_int(field: DocumentField | None) -> int | None:
         return int(digits) if digits else None
 
 
+def _condition_components(value: Any) -> tuple[str | None, int | None]:
+    if value is None:
+        return None, None
+    normalized = value
+    if isinstance(value, DocumentField):
+        normalized = _normalize_field_value(value)
+    rank = condition_rank(normalized)
+    code: str | None = None
+    if isinstance(normalized, dict):
+        for key in ("condition", "code", "value"):
+            if key in normalized:
+                code = normalize_condition_code(normalized.get(key))
+            if code:
+                break
+    else:
+        code = normalize_condition_code(normalized)
+    if code is None and rank is not None:
+        code = next((key for key, value in CONDITION_RANKS.items() if value == rank), None)
+    return code, rank
+
+
 def _phone_from_field(field: DocumentField | None) -> str | None:
     if field is None:
         return None
@@ -380,6 +403,15 @@ def _normalize_comparable(obj: dict[str, Any]) -> dict[str, Any]:
                 comparable[mapped] = value
             else:
                 continue
+        if mapped == "condition":
+            code, rank = _condition_components(value)
+            if code:
+                comparable[mapped] = code
+            else:
+                comparable[mapped] = value
+            if rank is not None:
+                comparable["condition_rank"] = rank
+            continue
         comparable[mapped] = value
     return comparable
 
@@ -389,7 +421,25 @@ def _sales_comparison_section(doc: AnalyzedDocument) -> dict[str, Any]:
     if section_field is None:
         return {}
     comparables: list[dict[str, Any]] = []
+    subject: dict[str, Any] = {}
     value_object = getattr(section_field, "value_object", None) or {}
+    if isinstance(value_object, dict):
+        subject_field = value_object.get("SubjectCondition")
+        if subject_field is None:
+            subject_block = value_object.get("Subject")
+            if isinstance(subject_block, dict):
+                subject_field = (
+                    subject_block.get("Condition")
+                    or subject_block.get("condition")
+                    or subject_block.get("Value")
+                    or subject_block.get("value")
+                )
+        code, rank = _condition_components(subject_field)
+        if code or rank is not None:
+            if code:
+                subject["condition"] = code
+            if rank is not None:
+                subject["condition_rank"] = rank
     comparables_field = value_object.get("Comparables") if isinstance(value_object, dict) else None
     if comparables_field and getattr(comparables_field, "value_list", None):
         for item in comparables_field.value_list:
@@ -410,20 +460,39 @@ def _sales_comparison_section(doc: AnalyzedDocument) -> dict[str, Any]:
                 condition_field = value_object.get(f"ComparableCondition{idx}")
             fallback_comparable: dict[str, Any] = {}
             sale_price = _money_to_int(sale_price_field)
-            condition = _field_text(condition_field)
-            if sale_price is None and condition is None:
+            condition_code, condition_rank_value = _condition_components(condition_field)
+            condition_text = _field_text(condition_field)
+            if sale_price is None and not condition_code and condition_text is None:
                 continue
             fallback_comparable["id"] = f"Comparable{idx}"
             if sale_price is not None:
                 fallback_comparable["sale_price"] = sale_price
-            if condition is not None:
-                fallback_comparable["condition"] = condition
+            if condition_code:
+                fallback_comparable["condition"] = condition_code
+            elif condition_text is not None:
+                fallback_comparable["condition"] = condition_text
+            if condition_rank_value is not None:
+                fallback_comparable["condition_rank"] = condition_rank_value
             comparables.append(fallback_comparable)
+    for index, comparable in list(enumerate(comparables)):
+        identifier = comparable.get("id")
+        if isinstance(identifier, str) and identifier.strip().lower() == "subject":
+            code = comparable.get("condition")
+            rank_value = comparable.get("condition_rank")
+            if code or rank_value is not None:
+                subject = {}
+                if code:
+                    subject["condition"] = normalize_condition_code(code) or str(code)
+                if rank_value is not None:
+                    subject["condition_rank"] = int(rank_value)
+            del comparables[index]
+            break
     indicated_value = _money_to_int(value_object.get("IndicatedValue")) if value_object else None
     return {
         k: v
         for k, v in {
             "comparables": comparables if comparables else None,
+            "subject": subject if subject else None,
             "indicated_value": indicated_value,
         }.items()
         if v not in (None, "", [])
